@@ -109,10 +109,50 @@ describe("SidebarAccountMenu", () => {
     await flushReact();
 
     expect(document.body.textContent).toContain("Edit profile");
-    expect(document.body.textContent).toContain("Switch to Manager profile");
+    expect(document.body.querySelector('button[aria-label="Switch to Manager view"]')).not.toBeNull();
+    expect(document.body.textContent).toContain("Bench instance");
     expect(document.body.textContent).toContain("Documentation");
     expect(document.body.textContent).toContain("Bench v1.2.3");
     expect(document.body.textContent).toContain("jane@example.com");
+
+    await act(async () => {
+      root.unmount();
+    });
+  });
+
+  it("shows Admin in the footer when legacy Board name is stored for local-trusted", async () => {
+    mockAuthApi.getSession.mockResolvedValue({
+      session: { id: "session-local", userId: "local-board" },
+      user: {
+        id: "local-board",
+        name: "Board",
+        email: "local@bench.local",
+        image: null,
+      },
+    });
+    const root = createRoot(container);
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+
+    await act(async () => {
+      root.render(
+        <QueryClientProvider client={queryClient}>
+          <DashboardPersonaProvider>
+            <SidebarAccountMenu
+              deploymentMode="local_trusted"
+              instanceSettingsTarget="/instance/settings/general"
+              version="0.3.1"
+            />
+          </DashboardPersonaProvider>
+        </QueryClientProvider>,
+      );
+    });
+    await flushReact();
+    await flushReact();
+
+    expect(container.textContent).toContain("Admin");
+    expect(container.textContent).not.toContain("Board");
 
     await act(async () => {
       root.unmount();

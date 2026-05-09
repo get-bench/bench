@@ -1,25 +1,57 @@
-import type { ConnectorCategory, ConnectorDefinition, ConnectorTypicalImportance } from "./types.js";
+import type {
+  ConnectorAudience,
+  ConnectorCategory,
+  ConnectorDefinition,
+  ConnectorTypicalImportance,
+} from "./types.js";
+import { ADDITIONAL_CONNECTORS } from "./catalog-additions.js";
 
 export const CONNECTOR_CATEGORY_LABELS: Record<ConnectorCategory, string> = {
-  team_chat: "Team chat",
-  email_calendar: "Email & calendar",
+  collaboration: "Collaboration",
+  mail_calendar: "Mail & calendar",
   meetings: "Meetings",
-  code_repo: "Code & repositories",
-  work_tracking: "Work tracking",
-  docs_wiki: "Docs & wiki",
-  devtools_cloud: "Cloud, data & platforms",
-  identity_access: "Identity & access",
+  engineering: "Engineering & source control",
+  delivery: "Planning & delivery",
+  knowledge: "Knowledge & docs",
+  design_research: "Design & research",
+  platforms: "Infrastructure & platforms",
+  trust: "Identity & trust",
 };
 
 export const CONNECTOR_CATEGORY_ORDER: ConnectorCategory[] = [
-  "team_chat",
-  "email_calendar",
+  "collaboration",
+  "mail_calendar",
   "meetings",
-  "code_repo",
-  "work_tracking",
-  "docs_wiki",
-  "devtools_cloud",
-  "identity_access",
+  "engineering",
+  "delivery",
+  "knowledge",
+  "design_research",
+  "platforms",
+  "trust",
+];
+
+export const CONNECTOR_AUDIENCE_LABELS: Record<ConnectorAudience, string> = {
+  engineering: "Engineering",
+  design: "Design",
+  product: "Product",
+  data: "Data & analytics",
+  operations: "Operations & IT",
+  gtm: "Go-to-market",
+  people: "People & HR",
+  security: "Security & compliance",
+  leadership: "Leadership",
+};
+
+export const CONNECTOR_AUDIENCE_ORDER: ConnectorAudience[] = [
+  "engineering",
+  "design",
+  "product",
+  "data",
+  "operations",
+  "gtm",
+  "people",
+  "security",
+  "leadership",
 ];
 
 const R = "required" as ConnectorTypicalImportance;
@@ -31,15 +63,23 @@ function steps(...lines: string[]): string[] {
 }
 
 /** Canonical list of connectable apps and how to wire them. Keep in sync with `doc/connectors-directory.md`. */
-export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
+const CONNECTOR_CATALOG_CORE: ConnectorDefinition[] = [
   {
     id: "slack",
     stackIcon: "slack",
     name: "Slack",
-    category: "team_chat",
+    category: "collaboration",
     description:
       "Primary channel for coworker presence, DMs, channel reads, and lightweight approvals where your team already works.",
     typicalImportance: R,
+    keywords: ["chat", "messaging", "channels", "async"],
+    setupOverview:
+      "Slack is usually the highest-signal surface for a coworker: channel context, threads, and DMs. Treat the connector as production infrastructure — scope channels deliberately and document which workspaces are in bounds.",
+    rolloutNotes: [
+      "Decide whether the coworker reads only public channels or also named private channels (invite-only).",
+      "Align with legal/comms on retention exports if the coworker summarizes threads.",
+      "Keep a single Slack app registration per Bench environment to simplify audits.",
+    ],
     prerequisites: ["Workspace admin can approve OAuth apps or custom integrations."],
     authenticationNotes: [
       "Use a Slack workspace admin or owner account for the initial OAuth consent.",
@@ -59,7 +99,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "microsoft-teams",
     stackIcon: "microsoft",
     name: "Microsoft Teams",
-    category: "team_chat",
+    category: "collaboration",
     description: "Chat and collaboration for Microsoft 365–centric organizations.",
     typicalImportance: R,
     prerequisites: ["Azure AD app registration permissions for Teams bot or Graph scopes."],
@@ -76,7 +116,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "google-chat",
     stackIcon: "google",
     name: "Google Chat",
-    category: "team_chat",
+    category: "collaboration",
     description: "Spaces and DMs in Google Workspace.",
     typicalImportance: M,
     setupSteps: steps(
@@ -91,7 +131,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
   {
     id: "mattermost",
     name: "Mattermost",
-    category: "team_chat",
+    category: "collaboration",
     description: "Self-hosted or cloud team messaging for regulated environments.",
     typicalImportance: M,
     setupSteps: steps(
@@ -105,7 +145,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
   {
     id: "webex-messaging",
     name: "Webex (Messaging)",
-    category: "team_chat",
+    category: "collaboration",
     description: "Enterprise messaging where Cisco Webex is standard.",
     typicalImportance: O,
     setupSteps: steps(
@@ -120,7 +160,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "outlook-m365",
     stackIcon: "microsoft",
     name: "Outlook / Microsoft 365",
-    category: "email_calendar",
+    category: "mail_calendar",
     description: "Mailbox and calendar on Microsoft 365 — email triage, invites, and scheduling.",
     typicalImportance: R,
     authenticationNotes: [
@@ -141,7 +181,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "gmail-google-workspace",
     stackIcon: "google",
     name: "Gmail & Google Calendar",
-    category: "email_calendar",
+    category: "mail_calendar",
     description: "Google Workspace mail and calendar for routing and meetings.",
     typicalImportance: R,
     setupSteps: steps(
@@ -156,7 +196,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
   {
     id: "imap-smtp",
     name: "IMAP / SMTP (generic)",
-    category: "email_calendar",
+    category: "mail_calendar",
     description: "Apple Mail, Fastmail, or other standards-based providers when OAuth is unavailable.",
     typicalImportance: O,
     prerequisites: ["Prefer OAuth providers when possible; app passwords increase operational risk."],
@@ -213,7 +253,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "github",
     stackIcon: "github",
     name: "GitHub",
-    category: "code_repo",
+    category: "engineering",
     description: "Repos, PRs, issues, Actions signals — primary toolchain for engineering coworkers.",
     typicalImportance: M,
     authenticationNotes: [
@@ -234,7 +274,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "gitlab",
     stackIcon: "gitlab",
     name: "GitLab",
-    category: "code_repo",
+    category: "engineering",
     description: "Merge requests, CI visibility, and repo operations on GitLab SaaS or self-managed.",
     typicalImportance: M,
     setupSteps: steps(
@@ -249,7 +289,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "bitbucket",
     stackIcon: "bitbucket",
     name: "Bitbucket Cloud / Data Center",
-    category: "code_repo",
+    category: "engineering",
     description: "Atlassian-flavored PRs and repos.",
     typicalImportance: O,
     setupSteps: steps(
@@ -263,7 +303,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "azure-repos",
     stackIcon: "azure",
     name: "Azure Repos",
-    category: "code_repo",
+    category: "engineering",
     description: "Git repos and PRs inside Azure DevOps.",
     typicalImportance: O,
     setupSteps: steps(
@@ -277,7 +317,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "jira",
     stackIcon: "jira",
     name: "Jira",
-    category: "work_tracking",
+    category: "delivery",
     description: "Issue transitions, comments, sprint hygiene — common enterprise backbone.",
     typicalImportance: M,
     setupSteps: steps(
@@ -292,7 +332,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "linear",
     stackIcon: "linear",
     name: "Linear",
-    category: "work_tracking",
+    category: "delivery",
     description: "Modern issue tracking for product/engineering teams.",
     typicalImportance: M,
     setupSteps: steps(
@@ -306,7 +346,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "asana",
     stackIcon: "asana",
     name: "Asana",
-    category: "work_tracking",
+    category: "delivery",
     description: "Tasks and projects for cross-functional coordination.",
     typicalImportance: O,
     setupSteps: steps(
@@ -320,7 +360,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "azure-devops-boards",
     stackIcon: "azure",
     name: "Azure Boards",
-    category: "work_tracking",
+    category: "delivery",
     description: "Work items linked to Azure DevOps repos and pipelines.",
     typicalImportance: O,
     setupSteps: steps(
@@ -334,7 +374,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "github-issues",
     stackIcon: "github",
     name: "GitHub Issues",
-    category: "work_tracking",
+    category: "delivery",
     description: "Lightweight tracking alongside GitHub PRs.",
     typicalImportance: M,
     setupSteps: steps(
@@ -347,7 +387,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "confluence",
     stackIcon: "atlassian",
     name: "Confluence",
-    category: "docs_wiki",
+    category: "knowledge",
     description: "Enterprise wiki — specs, runbooks, decision logs.",
     typicalImportance: M,
     setupSteps: steps(
@@ -361,7 +401,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "notion",
     stackIcon: "notion",
     name: "Notion",
-    category: "docs_wiki",
+    category: "knowledge",
     description: "Flexible docs and databases for product teams.",
     typicalImportance: M,
     setupSteps: steps(
@@ -375,7 +415,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "google-drive",
     stackIcon: "google",
     name: "Google Drive & Docs",
-    category: "docs_wiki",
+    category: "knowledge",
     description: "Canonical files and collaborative docs in Workspace.",
     typicalImportance: M,
     setupSteps: steps(
@@ -389,7 +429,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "sharepoint",
     stackIcon: "microsoft",
     name: "SharePoint / OneDrive",
-    category: "docs_wiki",
+    category: "knowledge",
     description: "Microsoft 365 document libraries and lists.",
     typicalImportance: O,
     setupSteps: steps(
@@ -403,7 +443,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "docker",
     stackIcon: "docker",
     name: "Docker",
-    category: "devtools_cloud",
+    category: "platforms",
     description:
       "Container images and local/remote Docker hosts for build, test, and deployment automation.",
     typicalImportance: M,
@@ -421,7 +461,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "kubernetes",
     stackIcon: "kubernetes",
     name: "Kubernetes",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Cluster API access for deployments, logs, and resource inspection where coworkers automate infra tasks.",
     typicalImportance: M,
     prerequisites: ["Highly sensitive — restrict to namespaces and verbs aligned with RBAC reviews."],
@@ -438,7 +478,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "terraform",
     stackIcon: "terraform",
     name: "Terraform / OpenTofu",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Infrastructure-as-code plans and applies for cloud resources (often paired with policy-as-code).",
     typicalImportance: O,
     setupSteps: steps(
@@ -453,7 +493,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "pulumi",
     stackIcon: "pulumi",
     name: "Pulumi",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "General-purpose IaC with familiar languages — stacks and outputs for automation coworkers.",
     typicalImportance: O,
     setupSteps: steps(
@@ -467,7 +507,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "hashicorp-vault",
     stackIcon: "vault",
     name: "HashiCorp Vault",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Central secret lease and dynamic credentials — preferred home for tokens coworkers retrieve at runtime.",
     typicalImportance: M,
     setupSteps: steps(
@@ -481,7 +521,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "rabbitmq",
     stackIcon: "rabbitmq",
     name: "RabbitMQ",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Message broker for async workflows, task queues, and integration glue.",
     typicalImportance: O,
     setupSteps: steps(
@@ -495,7 +535,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "mongodb",
     stackIcon: "mongodb",
     name: "MongoDB",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Document database access for analytics, ETL, or operational read assistants.",
     typicalImportance: O,
     setupSteps: steps(
@@ -509,7 +549,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "redis",
     stackIcon: "redis",
     name: "Redis / Valkey",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Caches, queues, and ephemeral state — common companion to web services.",
     typicalImportance: O,
     setupSteps: steps(
@@ -523,7 +563,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "postgresql",
     stackIcon: "postgresql",
     name: "PostgreSQL",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Relational reads/writes for reporting, migrations assistance, or app data surfacing.",
     typicalImportance: M,
     setupSteps: steps(
@@ -537,7 +577,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "mysql",
     stackIcon: "mysql",
     name: "MySQL / MariaDB",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Common relational store for LAMP-style stacks and SaaS replicas.",
     typicalImportance: O,
     setupSteps: steps(
@@ -550,7 +590,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "snowflake",
     stackIcon: "snowflake",
     name: "Snowflake",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Warehouse analytics SQL — governed access to curated datasets.",
     typicalImportance: O,
     setupSteps: steps(
@@ -564,7 +604,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "elasticsearch",
     stackIcon: "elastic",
     name: "Elasticsearch / OpenSearch",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Search and log indices — powerful reads; align with retention and PII policies.",
     typicalImportance: O,
     setupSteps: steps(
@@ -578,7 +618,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "aws",
     stackIcon: "aws",
     name: "Amazon Web Services (AWS)",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Broad cloud API surface — compute, storage, IAM-aware automation for engineering coworkers.",
     typicalImportance: M,
     prerequisites: ["Prefer scoped IAM roles (OIDC from CI) over long-lived access keys."],
@@ -594,7 +634,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "google-cloud",
     stackIcon: "gcloud",
     name: "Google Cloud (GCP)",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "GCP projects and APIs — BigQuery, GKE, Cloud Storage, IAM bindings.",
     typicalImportance: O,
     setupSteps: steps(
@@ -608,7 +648,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "microsoft-azure-cloud",
     stackIcon: "azure",
     name: "Microsoft Azure (cloud resources)",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Subscriptions, resource groups, Key Vault, AKS — distinct from Entra directory-only flows.",
     typicalImportance: O,
     setupSteps: steps(
@@ -622,7 +662,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "digitalocean",
     stackIcon: "digitalocean",
     name: "DigitalOcean",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Simpler cloud VMs, Kubernetes, and managed databases for smaller teams.",
     typicalImportance: O,
     setupSteps: steps(
@@ -635,7 +675,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "cloudflare",
     stackIcon: "cloudflare",
     name: "Cloudflare",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "DNS, CDN, WAF, Workers — edge configuration and traffic visibility.",
     typicalImportance: O,
     setupSteps: steps(
@@ -649,7 +689,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "datadog",
     stackIcon: "datadog",
     name: "Datadog",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Metrics, traces, logs, and monitors — operational context for incident coworkers.",
     typicalImportance: M,
     setupSteps: steps(
@@ -663,7 +703,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "grafana",
     stackIcon: "grafana",
     name: "Grafana",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Dashboards across Prometheus/Loki/Tempo and vendor datasources.",
     typicalImportance: O,
     setupSteps: steps(
@@ -676,7 +716,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "prometheus",
     stackIcon: "prometheus",
     name: "Prometheus",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Time-series metrics collection — often paired with Kubernetes service discovery.",
     typicalImportance: O,
     setupSteps: steps(
@@ -689,7 +729,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "nginx",
     stackIcon: "nginx",
     name: "NGINX",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Reverse proxy, ingress, and static delivery — config references for platform coworkers.",
     typicalImportance: O,
     setupSteps: steps(
@@ -702,7 +742,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "circleci",
     stackIcon: "circleci",
     name: "CircleCI",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Hosted CI pipelines — contexts, OIDC to clouds, and artifact access.",
     typicalImportance: O,
     setupSteps: steps(
@@ -715,7 +755,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "vercel",
     stackIcon: "vercel",
     name: "Vercel",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Frontend deployments, previews, and edge functions.",
     typicalImportance: O,
     setupSteps: steps(
@@ -728,7 +768,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "netlify",
     stackIcon: "netlify",
     name: "Netlify",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Jamstack hosting, builds, and serverless functions.",
     typicalImportance: O,
     setupSteps: steps(
@@ -741,7 +781,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "heroku",
     stackIcon: "heroku",
     name: "Heroku",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "PaaS apps and add-ons — useful for smaller services and review apps.",
     typicalImportance: O,
     setupSteps: steps(
@@ -754,7 +794,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "sentry",
     stackIcon: "sentry",
     name: "Sentry",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Error tracking and performance issues — triage assistance for engineering coworkers.",
     typicalImportance: O,
     setupSteps: steps(
@@ -767,7 +807,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "new-relic",
     stackIcon: "newrelic",
     name: "New Relic",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "APM and observability APIs for dashboards and NRQL queries.",
     typicalImportance: O,
     setupSteps: steps(
@@ -780,7 +820,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "stripe",
     stackIcon: "stripe",
     name: "Stripe",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Payments and billing primitives — restrict to test mode until explicitly approved for live.",
     typicalImportance: O,
     prerequisites: ["Finance and fraud review before any live-secret access."],
@@ -795,7 +835,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "twilio",
     stackIcon: "twilio",
     name: "Twilio",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "SMS, voice, and messaging APIs — strong abuse and spend controls required.",
     typicalImportance: O,
     prerequisites: ["Often requires legal/comms approval for customer-facing sends."],
@@ -809,7 +849,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "salesforce",
     stackIcon: "salesforce",
     name: "Salesforce",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "CRM objects, flows, and reporting — common GTM automation surface.",
     typicalImportance: O,
     setupSteps: steps(
@@ -822,7 +862,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "openapi-generic",
     stackIcon: "openapi",
     name: "OpenAPI / REST (generic)",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Internal or vendor HTTP APIs documented via OpenAPI — pattern for bespoke integrations.",
     typicalImportance: O,
     setupSteps: steps(
@@ -836,7 +876,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "graphql-generic",
     stackIcon: "graphql",
     name: "GraphQL (generic)",
-    category: "devtools_cloud",
+    category: "platforms",
     description: "Typed API graphs — enforce complexity limits and auth at the gateway.",
     typicalImportance: O,
     setupSteps: steps(
@@ -849,7 +889,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "okta",
     stackIcon: "okta",
     name: "Okta (SSO directory)",
-    category: "identity_access",
+    category: "trust",
     description: "People and group discovery for access provisioning narratives — complements Bench SSO.",
     typicalImportance: O,
     prerequisites: ["Usually coordinated with IdP admin — not required for every coworker."],
@@ -864,7 +904,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "azure-ad",
     stackIcon: "azure",
     name: "Microsoft Entra ID (Azure AD)",
-    category: "identity_access",
+    category: "trust",
     description: "Directory and conditional access context for Microsoft-centric fleets.",
     typicalImportance: O,
     setupSteps: steps(
@@ -877,7 +917,7 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     id: "auth0",
     stackIcon: "auth0",
     name: "Auth0 (Okta Customer Identity)",
-    category: "identity_access",
+    category: "trust",
     description: "Application login, MFA, and social/enterprise connections — developer-centric IAM.",
     typicalImportance: O,
     setupSteps: steps(
@@ -888,6 +928,8 @@ export const CONNECTOR_CATALOG: ConnectorDefinition[] = [
     learnMoreUrl: "https://auth0.com/docs/secure",
   },
 ];
+
+export const CONNECTOR_CATALOG: ConnectorDefinition[] = [...CONNECTOR_CATALOG_CORE, ...ADDITIONAL_CONNECTORS];
 
 const byId = new Map<string, ConnectorDefinition>();
 for (const c of CONNECTOR_CATALOG) {

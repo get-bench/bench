@@ -120,7 +120,7 @@ type ToolDirectoryCategory = {
 const TOOL_DIRECTORY: ToolDirectoryCategory[] = [
   {
     id: "team_chat",
-    label: "Team chat",
+    label: "Collaboration",
     blurb: "Where standups, DMs, and quick decisions happen.",
     required: true,
     options: [

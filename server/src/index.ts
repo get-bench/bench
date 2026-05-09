@@ -222,6 +222,18 @@ export async function startServer(): Promise<StartedServer> {
         createdAt: now,
         updatedAt: now,
       });
+    } else {
+      const legacy = await db
+        .select({ name: authUsers.name })
+        .from(authUsers)
+        .where(eq(authUsers.id, LOCAL_BOARD_USER_ID))
+        .then((rows: Array<{ name: string | null }>) => rows[0]?.name ?? null);
+      if (legacy?.trim().toLowerCase() === "board") {
+        await db
+          .update(authUsers)
+          .set({ name: LOCAL_BOARD_USER_NAME, updatedAt: now })
+          .where(eq(authUsers.id, LOCAL_BOARD_USER_ID));
+      }
     }
   
     const role = await db

@@ -15,7 +15,6 @@ import {
 import { Fragment, useMemo } from "react";
 import { PluginSlotOutlet, usePluginSlots } from "@/plugins/slots";
 import { PluginLauncherOutlet, usePluginLaunchers } from "@/plugins/launchers";
-import { DashboardPersonaSelect } from "./DashboardPersonaSelect";
 
 type GlobalToolbarContext = { companyId: string | null; companyPrefix: string | null };
 
@@ -50,7 +49,6 @@ export function BreadcrumbBar() {
     return (
       <div className="border-b border-border px-2 h-12 shrink-0 flex items-center gap-2">
         <div className="min-w-0 flex-1">{mobileToolbar}</div>
-        <DashboardPersonaSelect />
       </div>
     );
   }
@@ -58,7 +56,6 @@ export function BreadcrumbBar() {
   if (breadcrumbs.length === 0) {
     return (
       <div className="border-b border-border px-4 md:px-6 h-12 shrink-0 flex items-center justify-end gap-2">
-        <DashboardPersonaSelect className="mr-auto" />
         {globalToolbarSlots}
       </div>
     );
@@ -86,7 +83,6 @@ export function BreadcrumbBar() {
             {breadcrumbs[0].label}
           </h1>
         </div>
-        <DashboardPersonaSelect />
         {globalToolbarSlots}
       </div>
     );
@@ -119,7 +115,6 @@ export function BreadcrumbBar() {
           </BreadcrumbList>
         </Breadcrumb>
       </div>
-      <DashboardPersonaSelect />
       {globalToolbarSlots}
     </div>
   );

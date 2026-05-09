@@ -9,5 +9,11 @@ describe("CONNECTOR_CATALOG", () => {
 
   it("resolves known ids", () => {
     expect(getConnectorById("slack")?.name).toBe("Slack");
+    expect(getConnectorById("figma")?.category).toBe("design_research");
+    expect(getConnectorById("dovetail")?.name).toBe("Dovetail");
+  });
+
+  it("includes a broad catalog", () => {
+    expect(CONNECTOR_CATALOG.length).toBeGreaterThanOrEqual(95);
   });
 });

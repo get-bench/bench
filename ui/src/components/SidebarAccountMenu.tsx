@@ -20,7 +20,9 @@ import { useSidebar } from "../context/SidebarContext";
 import { useTheme } from "../context/ThemeContext";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { cn } from "../lib/utils";
+import { resolveAccountPersonaTitle } from "../lib/account-display";
 
 const PROFILE_SETTINGS_PATH = "/instance/settings/profile";
 const DOCS_URL = "https://docs.bench.ing/";
@@ -131,12 +133,21 @@ export function SidebarAccountMenu({
     },
   });
 
-  const displayName = session?.user.name?.trim() || "Admin";
+  const persona = dashboardPersona?.persona ?? "admin";
+  const displayName = resolveAccountPersonaTitle({
+    deploymentMode,
+    userId: session?.user.id,
+    name: session?.user.name,
+    email: session?.user.email,
+    persona,
+  });
   const secondaryLabel =
     session?.user.email?.trim() || (deploymentMode === "authenticated" ? "Signed in" : "Local workspace");
   const accountBadge = deploymentMode === "authenticated" ? "Account" : "Local";
   const initials = deriveInitials(displayName);
   const profileHref = `/u/${deriveUserSlug(session?.user.name, session?.user.email, session?.user.id)}`;
+  const personaToggleLabel =
+    persona === "admin" ? "Switch to Manager view" : "Switch to Admin view";
 
   function closeNavigationChrome() {
     setOpen(false);
@@ -175,8 +186,28 @@ export function SidebarAccountMenu({
                 </Avatar>
               </div>
               <div className="min-w-0 flex-1 pt-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="truncate text-base font-semibold text-foreground">{displayName}</h2>
+                <div className="flex items-center gap-1">
+                  <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-foreground">
+                    {displayName}
+                  </h2>
+                  {dashboardPersona ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="shrink-0 text-muted-foreground hover:text-foreground"
+                      aria-label={personaToggleLabel}
+                      title={personaToggleLabel}
+                      onClick={() => {
+                        dashboardPersona.setPersona(persona === "admin" ? "manager" : "admin");
+                        closeNavigationChrome();
+                      }}
+                    >
+                      <ArrowLeftRight className="size-4" />
+                    </Button>
+                  ) : null}
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-2">
                   <span className="rounded-full bg-accent px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     {accountBadge}
                   </span>
@@ -203,30 +234,9 @@ export function SidebarAccountMenu({
                 href={PROFILE_SETTINGS_PATH}
                 onClick={closeNavigationChrome}
               />
-              {dashboardPersona ? (
-                <MenuAction
-                  label={
-                    dashboardPersona.persona === "admin"
-                      ? "Switch to Manager profile"
-                      : "Switch to Admin profile"
-                  }
-                  description={
-                    dashboardPersona.persona === "admin"
-                      ? "Same as View as Manager — scoped coworkers and execution-focused navigation."
-                      : "Same as View as Admin — full oversight, hires, and approvals layout."
-                  }
-                  icon={ArrowLeftRight}
-                  onClick={() => {
-                    dashboardPersona.setPersona(
-                      dashboardPersona.persona === "admin" ? "manager" : "admin",
-                    );
-                    closeNavigationChrome();
-                  }}
-                />
-              ) : null}
               <MenuAction
-                label="Instance settings"
-                description="Jump back to the last settings page you opened."
+                label="Bench instance"
+                description="Profile, adapters, plugins, and server-wide settings."
                 icon={Settings}
                 href={instanceSettingsTarget}
                 onClick={closeNavigationChrome}

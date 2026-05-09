@@ -4,17 +4,33 @@
  */
 
 export type ConnectorCategory =
-  | "team_chat"
-  | "email_calendar"
+  | "collaboration"
+  | "mail_calendar"
   | "meetings"
-  | "code_repo"
-  | "work_tracking"
-  | "docs_wiki"
-  | "devtools_cloud"
-  | "identity_access";
+  | "engineering"
+  | "delivery"
+  | "knowledge"
+  | "design_research"
+  | "platforms"
+  | "trust";
 
 /** Typical posture when hiring a coworker — not a hard enforcement flag in V1. */
 export type ConnectorTypicalImportance = "required" | "recommended" | "optional";
+
+/**
+ * Loose “who usually cares” lens for directory filters — not RBAC.
+ * Connectors without {@link ConnectorDefinition.audiences} match every audience filter.
+ */
+export type ConnectorAudience =
+  | "engineering"
+  | "design"
+  | "product"
+  | "data"
+  | "operations"
+  | "gtm"
+  | "people"
+  | "security"
+  | "leadership";
 
 export interface ConnectorDefinition {
   id: string;
@@ -26,6 +42,14 @@ export interface ConnectorDefinition {
   category: ConnectorCategory;
   description: string;
   typicalImportance: ConnectorTypicalImportance;
+  /** Extra phrases for search (capabilities, synonyms). */
+  keywords?: string[];
+  /** When set, directory “Team focus” filters to these audiences; omit = relevant to any team. */
+  audiences?: ConnectorAudience[];
+  /** Short paragraph at top of the setup guide (operator context). */
+  setupOverview?: string;
+  /** Narrative bullets before prerequisites (policies, ownership). */
+  rolloutNotes?: string[];
   /** Ordered checklist for IT / operator — product-specific wiring may ship incrementally. */
   setupSteps: string[];
   /** Short bullets focused on OAuth / tokens / admin consent (optional; UI falls back to generic guidance). */
