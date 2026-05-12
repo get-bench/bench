@@ -266,6 +266,16 @@ Bench is a full control plane, not a wrapper. Before you build any of this yours
 </tr>
 </table>
 
+### Connector runtime and access (experimental)
+
+Workspace-level **connector installs** (OAuth start/callback, encrypted tokens, outbound audit) ship behind the **Connector Runtime** toggle in **Instance → Experimental settings** (off by default). The in-app **Connectors** directory lists the catalog; vendor-specific rollout is staged per connector.
+
+- **RBAC:** Workspace vs instance capabilities and hire flows are defined in [`doc/roles.md`](doc/roles.md).
+- **Architecture:** [`doc/plans/2026-05-11-connector-runtime.md`](doc/plans/2026-05-11-connector-runtime.md) describes the hybrid control-plane + MCP model.
+- **Catalog:** [`doc/connectors-directory.md`](doc/connectors-directory.md) complements the canonical `CONNECTOR_CATALOG` in `@bench/shared`.
+
+Brand assets used by the UI (for example the Bench mark in navigation) live under [`images/svg/`](images/svg/).
+
 <br/>
 
 ## What Bench is not
@@ -354,6 +364,8 @@ pnpm db:migrate       # Apply migrations
 
 `pnpm test` does not run Playwright. Browser suites stay separate and are typically run only when working on those flows or in CI.
 
+For **connector OAuth** and workspace installs, turn on **Connector Runtime** under **Instance → Experimental** (see [doc/DEVELOPING.md](doc/DEVELOPING.md) and [doc/connectors-directory.md](doc/connectors-directory.md)).
+
 See [doc/DEVELOPING.md](doc/DEVELOPING.md) for the full development guide.
 
 <br/>
@@ -361,6 +373,7 @@ See [doc/DEVELOPING.md](doc/DEVELOPING.md) for the full development guide.
 ## Roadmap
 
 - ✅ Plugin system (e.g. add a knowledge base, custom tracing, queues, etc)
+- ✅ Connector runtime spine (OAuth install/callback; gated by experimental flag)
 - ✅ Get OpenClaw / claw-style agent employees
 - ✅ companies.sh - import and export entire organizations
 - ✅ Easy AGENTS.md configurations
