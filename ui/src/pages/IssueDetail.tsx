@@ -1077,6 +1077,7 @@ function IssueDetailActivityTab({
               key={approval.id}
               approval={approval}
               requesterAgent={approval.requestedByAgentId ? agentMap.get(approval.requestedByAgentId) ?? null : null}
+              viewerUserId={currentUserId}
               onApprove={() => onApprovalAction(approval.id, "approve")}
               onReject={() => onApprovalAction(approval.id, "reject")}
               detailLink={`/approvals/${approval.id}`}

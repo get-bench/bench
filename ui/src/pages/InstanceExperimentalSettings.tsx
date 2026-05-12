@@ -128,7 +128,7 @@ export function InstanceExperimentalSettings() {
 
   useEffect(() => {
     setBreadcrumbs([
-      { label: "Instance Settings" },
+      { label: "Bench settings", href: "/bench/settings/general" },
       { label: "Experimental" },
     ]);
   }, [setBreadcrumbs]);
@@ -206,6 +206,7 @@ export function InstanceExperimentalSettings() {
   const enableEnvironments = experimentalQuery.data?.enableEnvironments === true;
   const enableIsolatedWorkspaces = experimentalQuery.data?.enableIsolatedWorkspaces === true;
   const autoRestartDevServerWhenIdle = experimentalQuery.data?.autoRestartDevServerWhenIdle === true;
+  const enableConnectorRuntime = experimentalQuery.data?.enableConnectorRuntime === true;
   const enableIssueGraphLivenessAutoRecovery =
     experimentalQuery.data?.enableIssueGraphLivenessAutoRecovery === true;
   const lookbackHours =
@@ -312,6 +313,24 @@ export function InstanceExperimentalSettings() {
             onCheckedChange={() => toggleMutation.mutate({ autoRestartDevServerWhenIdle: !autoRestartDevServerWhenIdle })}
             disabled={toggleMutation.isPending}
             aria-label="Toggle guarded dev-server auto-restart"
+          />
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-5">
+        <div className="flex items-start justify-between gap-4">
+          <div className="space-y-1.5">
+            <h2 className="text-sm font-semibold">Enable Connector Runtime</h2>
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              Turn on the new connector subsystem (OAuth installs, webhook ingress, per-coworker scope enforcement,
+              outbound audit). Off by default; vendor connectors land behind their own sub-flags as they ship.
+            </p>
+          </div>
+          <ToggleSwitch
+            checked={enableConnectorRuntime}
+            onCheckedChange={() => toggleMutation.mutate({ enableConnectorRuntime: !enableConnectorRuntime })}
+            disabled={toggleMutation.isPending}
+            aria-label="Toggle Connector Runtime experimental setting"
           />
         </div>
       </section>

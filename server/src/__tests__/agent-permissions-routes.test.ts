@@ -177,6 +177,7 @@ function registerModuleMocks() {
 
   vi.doMock("../services/index.js", () => ({
     agentService: () => mockAgentService,
+    agentActivityFeedService: () => ({ list: vi.fn().mockResolvedValue([]) }),
     agentInstructionsService: () => mockAgentInstructionsService,
     accessService: () => mockAccessService,
     approvalService: () => mockApprovalService,
@@ -194,25 +195,71 @@ function registerModuleMocks() {
   }));
 }
 
-function createDbStub(options: { requireBoardApprovalForNewAgents?: boolean } = {}) {
+function createDbStub(
+  options: {
+    requireBoardApprovalForNewAgents?: boolean;
+    /**
+     * When true, the stub returns one row from the `agents` SELECT used by the
+     * first-hire-bypass check, simulating a workspace that already has a hired
+     * coworker (so the bypass should NOT fire).
+     */
+     workspaceHasExistingAgents?: boolean;
+  } = {},
+) {
+  // The hire endpoint runs two SELECTs in this order:
+  //   1) SELECT … FROM companies WHERE id = …  (chained as .from().where().then(...))
+  //   2) SELECT id FROM agents WHERE companyId = … AND status != 'terminated' LIMIT 1
+  //      (chained as .select({...}).from().where().limit(...))
+  // We discriminate which query is which by the absence/presence of `.limit()`
+  // in the chain. The companies query awaits a thenable; the agents query awaits
+  // the .limit() promise. Returning Symbol.asyncIterator-friendly objects is
+  // overkill for tests — a thenable + a .limit-returning promise covers both.
+  let selectCallCount = 0;
   return {
-    select: vi.fn().mockReturnValue({
-      from: vi.fn().mockReturnValue({
-        where: vi.fn().mockReturnValue({
-          then: vi.fn((resolve) =>
-            Promise.resolve(resolve([{
-              id: companyId,
-              name: "Bench",
-              requireBoardApprovalForNewAgents: options.requireBoardApprovalForNewAgents ?? false,
-            }])),
-          ),
+    select: vi.fn().mockImplementation(() => {
+      selectCallCount += 1;
+      const isCompanyQuery = selectCallCount === 1;
+      const agentsRows = options.workspaceHasExistingAgents
+        ? [{ id: "existing-agent" }]
+        : [];
+      if (isCompanyQuery) {
+        return {
+          from: vi.fn().mockReturnValue({
+            where: vi.fn().mockReturnValue({
+              then: vi.fn((resolve) =>
+                Promise.resolve(
+                  resolve([
+                    {
+                      id: companyId,
+                      name: "Bench",
+                      requireBoardApprovalForNewAgents:
+                        options.requireBoardApprovalForNewAgents ?? false,
+                    },
+                  ]),
+                ),
+              ),
+            }),
+          }),
+        };
+      }
+      return {
+        from: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({
+            limit: vi.fn().mockResolvedValue(agentsRows),
+          }),
         }),
-      }),
+      };
     }),
   };
 }
 
-async function createApp(actor: Record<string, unknown>, dbOptions: { requireBoardApprovalForNewAgents?: boolean } = {}) {
+async function createApp(
+  actor: Record<string, unknown>,
+  dbOptions: {
+    requireBoardApprovalForNewAgents?: boolean;
+    workspaceHasExistingAgents?: boolean;
+  } = {},
+) {
   const [{ errorHandler }, { agentRoutes }] = await Promise.all([
     import("../middleware/index.js") as Promise<typeof import("../middleware/index.js")>,
     import("../routes/agents.js") as Promise<typeof import("../routes/agents.js")>,
@@ -944,6 +991,127 @@ describe.sequential("agent permission routes", () => {
         },
       }),
     );
+  });
+
+  // First-hire bypass — separation-of-duties carve-out (doc/roles.md §7.1).
+  // When a workspace has zero existing coworkers, there is nobody who could
+  // approve the hire request without violating separation of duties (the
+  // requester themselves would have to approve, which the approval routes
+  // block with 403 self_approval_forbidden). Skip the gate entirely so
+  // first-run onboarding can complete; subsequent hires honor the workspace
+  // setting.
+  describe("first-hire bypass", () => {
+    it("skips the approval gate for the very first hire even when require_board_approval_for_new_agents is true", async () => {
+      const app = await createApp(
+        {
+          type: "board",
+          userId: "board-user",
+          source: "local_implicit",
+          isInstanceAdmin: true,
+          companyIds: [companyId],
+        },
+        { requireBoardApprovalForNewAgents: true, workspaceHasExistingAgents: false },
+      );
+
+      const res = await requestApp(app, (baseUrl) => request(baseUrl)
+        .post(`/api/companies/${companyId}/agent-hires`)
+        .send({
+          name: "Riya",
+          role: "designer",
+          adapterType: "process",
+          adapterConfig: {},
+        }));
+
+      expect(res.status).toBe(201);
+      expect(mockAgentService.create).toHaveBeenCalledWith(
+        companyId,
+        expect.objectContaining({ status: "idle" }),
+      );
+      expect(mockApprovalService.create).not.toHaveBeenCalled();
+      expect(mockLogActivity).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          action: "agent.hire_created",
+          details: expect.objectContaining({
+            firstHireBypass: true,
+            requiresApproval: false,
+            approvalId: null,
+          }),
+        }),
+      );
+    });
+
+    it("still requires approval for the second+ hire when the workspace setting is on", async () => {
+      const app = await createApp(
+        {
+          type: "board",
+          userId: "board-user",
+          source: "local_implicit",
+          isInstanceAdmin: true,
+          companyIds: [companyId],
+        },
+        { requireBoardApprovalForNewAgents: true, workspaceHasExistingAgents: true },
+      );
+      mockApprovalService.create.mockResolvedValue({
+        id: "approval-after-first-hire",
+        status: "pending",
+      });
+
+      const res = await requestApp(app, (baseUrl) => request(baseUrl)
+        .post(`/api/companies/${companyId}/agent-hires`)
+        .send({
+          name: "Aanya",
+          role: "engineer",
+          adapterType: "process",
+          adapterConfig: {},
+        }));
+
+      expect(res.status).toBe(201);
+      expect(mockAgentService.create).toHaveBeenCalledWith(
+        companyId,
+        expect.objectContaining({ status: "pending_approval" }),
+      );
+      expect(mockApprovalService.create).toHaveBeenCalledOnce();
+      expect(mockLogActivity).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          action: "agent.hire_created",
+          details: expect.objectContaining({
+            firstHireBypass: false,
+            requiresApproval: true,
+            approvalId: "approval-after-first-hire",
+          }),
+        }),
+      );
+    });
+
+    it("does not bypass when the workspace setting is off (status follows the off path regardless of agent count)", async () => {
+      const app = await createApp(
+        {
+          type: "board",
+          userId: "board-user",
+          source: "local_implicit",
+          isInstanceAdmin: true,
+          companyIds: [companyId],
+        },
+        { requireBoardApprovalForNewAgents: false, workspaceHasExistingAgents: false },
+      );
+
+      const res = await requestApp(app, (baseUrl) => request(baseUrl)
+        .post(`/api/companies/${companyId}/agent-hires`)
+        .send({
+          name: "Riya",
+          role: "designer",
+          adapterType: "process",
+          adapterConfig: {},
+        }));
+
+      expect(res.status).toBe(201);
+      // When the workspace doesn't require approval, the bypass flag is true (it's
+      // the first hire) but it's a no-op — there's nothing to bypass. Status is
+      // still 'idle' and no approval row is written.
+      expect(mockApprovalService.create).not.toHaveBeenCalled();
+    });
   });
 
   it("allows board users to directly approve pending agents", async () => {

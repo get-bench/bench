@@ -82,7 +82,9 @@ export {
   COMPANY_MEMBERSHIP_ROLES,
   HUMAN_COMPANY_MEMBERSHIP_ROLES,
   HUMAN_COMPANY_MEMBERSHIP_ROLE_LABELS,
+  HUMAN_COMPANY_MEMBERSHIP_ROLE_DESCRIPTIONS,
   INSTANCE_USER_ROLES,
+  INSTANCE_USER_ROLE_LABELS,
   INVITE_TYPES,
   INVITE_JOIN_TYPES,
   JOIN_REQUEST_TYPES,
@@ -271,6 +273,7 @@ export type {
   AgentSkillSyncRequest,
   InstanceExperimentalSettings,
   InstanceGeneralSettings,
+  InstanceSsoOidcSettings,
   InstanceSettings,
   IssueGraphLivenessAutoRecoveryPreview,
   IssueGraphLivenessAutoRecoveryPreviewItem,
@@ -564,6 +567,7 @@ export {
   WEEKLY_RETENTION_PRESETS,
   MONTHLY_RETENTION_PRESETS,
   DEFAULT_BACKUP_RETENTION,
+  DEFAULT_SSO_OIDC,
   DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS,
   MIN_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS,
   MAX_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS,
@@ -576,6 +580,7 @@ export {
 
 export {
   instanceGeneralSettingsSchema,
+  instanceSsoOidcSchema,
   patchInstanceGeneralSettingsSchema,
   type PatchInstanceGeneralSettings,
   instanceExperimentalSettingsSchema,
@@ -887,6 +892,17 @@ export {
 } from "./validators/index.js";
 
 export { API_PREFIX, API } from "./api.js";
+export {
+  WORKSPACE_CAPABILITIES,
+  INSTANCE_CAPABILITIES,
+  ROLES_ALLOWED_BY_WORKSPACE_CAPABILITY,
+  ROLES_ALLOWED_BY_INSTANCE_CAPABILITY,
+  roleCanDoWorkspace,
+  rolesAllowedForWorkspaceCapability,
+  instanceRoleCanDo,
+  type WorkspaceCapability,
+  type InstanceCapability,
+} from "./access/permission-matrix.js";
 export { normalizeAgentUrlKey, deriveAgentUrlKey, isUuidLike } from "./agent-url-key.js";
 export { deriveProjectUrlKey, normalizeProjectUrlKey, hasNonAsciiContent } from "./project-url-key.js";
 export {

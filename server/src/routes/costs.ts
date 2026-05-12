@@ -18,7 +18,12 @@ import {
   heartbeatService,
   logActivity,
 } from "../services/index.js";
-import { assertBoard, assertCompanyAccess, getActorInfo } from "./authz.js";
+import {
+  assertBoard,
+  assertCompanyAccess,
+  assertWorkspaceCapability,
+  getActorInfo,
+} from "./authz.js";
 import { fetchAllQuotaWindows } from "../services/quota-windows.js";
 import { badRequest } from "../errors.js";
 import type { PluginWorkerManager } from "../services/plugin-worker-manager.js";
@@ -247,7 +252,15 @@ export function costRoutes(
     async (req, res) => {
       assertBoard(req);
       const companyId = req.params.companyId as string;
-      assertCompanyAccess(req, companyId);
+      // Workspace-scope budget policies set the cap that gates every coworker
+      // hire and run; per roles.md §5 this is Owner-only.
+      const isWorkspaceScope =
+        req.body.scopeType === "company" && req.body.scopeId === companyId;
+      assertWorkspaceCapability(
+        req,
+        companyId,
+        isWorkspaceScope ? "workspace:budget:set" : "workspace:settings:general:edit",
+      );
       const summary = await budgets.upsertPolicy(companyId, req.body, req.actor.userId ?? "board");
       res.json(summary);
     },
@@ -260,7 +273,10 @@ export function costRoutes(
       assertBoard(req);
       const companyId = req.params.companyId as string;
       const incidentId = req.params.incidentId as string;
-      assertCompanyAccess(req, companyId);
+      // Resolving a budget incident may include a "raise budget and resume"
+      // action that mutates the workspace cap; gate as workspace:budget:set
+      // (Owner only) per roles.md §5.
+      assertWorkspaceCapability(req, companyId, "workspace:budget:set");
       const incident = await budgets.resolveIncident(companyId, incidentId, req.body, req.actor.userId ?? "board");
       res.json(incident);
     },
@@ -277,7 +293,8 @@ export function costRoutes(
   router.patch("/companies/:companyId/budgets", validate(updateBudgetSchema), async (req, res) => {
     assertBoard(req);
     const companyId = req.params.companyId as string;
-    assertCompanyAccess(req, companyId);
+    // Setting the workspace's monthly budget cap is Owner-only (roles.md §5).
+    assertWorkspaceCapability(req, companyId, "workspace:budget:set");
     const company = await companies.update(companyId, { budgetMonthlyCents: req.body.budgetMonthlyCents });
     if (!company) {
       res.status(404).json({ error: "Company not found" });
@@ -316,8 +333,11 @@ export function costRoutes(
       return;
     }
 
-    assertCompanyAccess(req, agent.companyId);
     assertBoard(req);
+    // Per-coworker budget edits sit alongside other coworker mutations: People
+    // Managers operate within a policy they don't set (roles.md §4.4 — "within
+    // budget policy"), so this is Owner/Admin only.
+    assertWorkspaceCapability(req, agent.companyId, "workspace:coworkers:edit_any");
 
     const updated = await agents.update(agentId, { budgetMonthlyCents: req.body.budgetMonthlyCents });
     if (!updated) {

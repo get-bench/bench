@@ -120,7 +120,7 @@ export function RequestCoworkerHireDialog() {
           <DialogDescription className="text-left">
             Pick a standard Bench role (with typical capabilities) or describe a custom role. This opens an{" "}
             <strong>issue ticket</strong> with id <span className="font-mono">HIRE-…</span> assigned to your company{" "}
-            <strong>{CX.adminLeadLabel}</strong> for review.
+            <strong>{CX.approverRoleLabel}</strong> for review.
           </DialogDescription>
         </DialogHeader>
 
@@ -158,7 +158,7 @@ export function RequestCoworkerHireDialog() {
           {kind === "standard" ? (
             <div className="space-y-2">
               <p className="text-xs text-muted-foreground">
-                Select the role that best matches the hire. {CX.adminLeadBlurb}
+                Select the role that best matches the hire. {CX.approverRoleBlurb}
               </p>
               <div className="grid gap-2 max-h-[240px] overflow-y-auto pr-1">
                 {HIRE_REQUEST_STANDARD_ROLES.map((role) => {
@@ -229,7 +229,7 @@ export function RequestCoworkerHireDialog() {
           {!adminAgent ? (
             <p className="text-xs text-amber-800 dark:text-amber-200 bg-amber-500/10 border border-amber-500/25 rounded-md px-3 py-2">
               No Admin coworker found in this company yet. The ticket will still be created; assign it to your{" "}
-              {CX.adminLeadLabel} manually if needed.
+              {CX.approverRoleLabel} manually if needed.
             </p>
           ) : null}
         </div>

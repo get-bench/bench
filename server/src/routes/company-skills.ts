@@ -10,7 +10,11 @@ import { trackSkillImported } from "@bench/shared/telemetry";
 import { validate } from "../middleware/validate.js";
 import { accessService, agentService, companySkillService, logActivity } from "../services/index.js";
 import { forbidden } from "../errors.js";
-import { assertCompanyAccess, getActorInfo } from "./authz.js";
+import {
+  assertCompanyAccess,
+  assertWorkspaceCapability,
+  getActorInfo,
+} from "./authz.js";
 import { getTelemetryClient } from "../telemetry.js";
 
 type SkillTelemetryInput = {
@@ -53,16 +57,13 @@ export function companySkillRoutes(db: Db) {
   }
 
   async function assertCanMutateCompanySkills(req: Request, companyId: string) {
-    assertCompanyAccess(req, companyId);
-
     if (req.actor.type === "board") {
-      if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) return;
-      const allowed = await access.canUser(companyId, req.actor.userId, "agents:create");
-      if (!allowed) {
-        throw forbidden("Missing permission: agents:create");
-      }
+      // Per roles.md §5: workspace skills library is Owner/Admin only.
+      assertWorkspaceCapability(req, companyId, "workspace:skills:edit");
       return;
     }
+
+    assertCompanyAccess(req, companyId);
 
     if (!req.actor.agentId) {
       throw forbidden("Agent authentication required");

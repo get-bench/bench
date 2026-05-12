@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Layout } from "./components/Layout";
 import { OnboardingWizard } from "./components/OnboardingWizard";
 import { CloudAccessGate } from "./components/CloudAccessGate";
+import { InstanceAdminGuard } from "./components/access/InstanceAdminGuard";
 import { Dashboard } from "./pages/Dashboard";
 import { DashboardLive } from "./pages/DashboardLive";
 import { Companies } from "./pages/Companies";
@@ -39,6 +40,7 @@ import { InstanceGeneralSettings } from "./pages/InstanceGeneralSettings";
 import { InstanceAccess } from "./pages/InstanceAccess";
 import { InstanceSettings } from "./pages/InstanceSettings";
 import { InstanceExperimentalSettings } from "./pages/InstanceExperimentalSettings";
+import { BenchSsoSettings } from "./pages/BenchSsoSettings";
 import { ProfileSettings } from "./pages/ProfileSettings";
 import { PluginManager } from "./pages/PluginManager";
 import { PluginSettings } from "./pages/PluginSettings";
@@ -57,6 +59,24 @@ import { useDialogActions } from "./context/DialogContext";
 import { loadLastInboxTab } from "./lib/inbox";
 import { shouldRedirectCompanylessRouteToOnboarding } from "./lib/onboarding-route";
 
+function WorkspaceSettingsLegacyRedirect() {
+  const location = useLocation();
+  const next =
+    location.pathname.replace(/\/company\/settings/, "/workspace/settings") +
+    location.search +
+    location.hash;
+  return <Navigate to={next} replace />;
+}
+
+function InstanceSettingsLegacyRedirect() {
+  const location = useLocation();
+  const next =
+    location.pathname.replace(/^\/instance\/settings/, "/bench/settings") +
+    location.search +
+    location.hash;
+  return <Navigate to={next} replace />;
+}
+
 function boardRoutes() {
   return (
     <>
@@ -65,10 +85,11 @@ function boardRoutes() {
       <Route path="dashboard/live" element={<DashboardLive />} />
       <Route path="onboarding" element={<OnboardingRoutePage />} />
       <Route path="companies" element={<Companies />} />
-      <Route path="company/settings" element={<CompanySettings />} />
-      <Route path="company/settings/environments" element={<CompanyEnvironments />} />
-      <Route path="company/settings/access" element={<CompanyAccess />} />
-      <Route path="company/settings/invites" element={<CompanyInvites />} />
+      <Route path="company/settings/*" element={<WorkspaceSettingsLegacyRedirect />} />
+      <Route path="workspace/settings" element={<CompanySettings />} />
+      <Route path="workspace/settings/environments" element={<CompanyEnvironments />} />
+      <Route path="workspace/settings/access" element={<CompanyAccess />} />
+      <Route path="workspace/settings/invites" element={<CompanyInvites />} />
       <Route path="company/export/*" element={<CompanyExport />} />
       <Route path="company/import" element={<CompanyImport />} />
       <Route path="skills/*" element={<CompanySkills />} />
@@ -130,7 +151,7 @@ function boardRoutes() {
       <Route path="inbox/new" element={<Navigate to="/inbox/mine" replace />} />
       <Route path="u/:userSlug" element={<UserProfile />} />
       <Route path="design-guide" element={<DesignGuide />} />
-      <Route path="instance/settings/adapters" element={<AdapterManager />} />
+      <Route path="instance/settings/adapters" element={<Navigate to="/bench/settings/adapters" replace />} />
       <Route path=":pluginRoutePath" element={<PluginPage />} />
       <Route path="*" element={<NotFoundPage scope="board" />} />
     </>
@@ -143,7 +164,7 @@ function InboxRootRedirect() {
 
 function LegacySettingsRedirect() {
   const location = useLocation();
-  return <Navigate to={`/instance/settings/general${location.search}${location.hash}`} replace />;
+  return <Navigate to={`/bench/settings/general${location.search}${location.hash}`} replace />;
 }
 
 function OnboardingRoutePage() {
@@ -270,17 +291,23 @@ export function App() {
         <Route element={<CloudAccessGate />}>
           <Route index element={<CompanyRootRedirect />} />
           <Route path="onboarding" element={<OnboardingRoutePage />} />
-          <Route path="instance" element={<Navigate to="/instance/settings/general" replace />} />
-          <Route path="instance/settings" element={<Layout />}>
+          <Route path="instance" element={<Navigate to="/bench/settings/general" replace />} />
+          <Route path="instance/settings/*" element={<InstanceSettingsLegacyRedirect />} />
+          <Route path="bench/settings" element={<Layout />}>
+            {/* Profile is the only sub-page non-admins should reach. Everything
+                else is gated by InstanceAdminGuard. */}
             <Route index element={<Navigate to="general" replace />} />
             <Route path="profile" element={<ProfileSettings />} />
-            <Route path="general" element={<InstanceGeneralSettings />} />
-            <Route path="access" element={<InstanceAccess />} />
-            <Route path="heartbeats" element={<InstanceSettings />} />
-            <Route path="experimental" element={<InstanceExperimentalSettings />} />
-            <Route path="plugins" element={<PluginManager />} />
-            <Route path="plugins/:pluginId" element={<PluginSettings />} />
-            <Route path="adapters" element={<AdapterManager />} />
+            <Route element={<InstanceAdminGuard />}>
+              <Route path="general" element={<InstanceGeneralSettings />} />
+              <Route path="access" element={<InstanceAccess />} />
+              <Route path="sso" element={<BenchSsoSettings />} />
+              <Route path="heartbeats" element={<InstanceSettings />} />
+              <Route path="experimental" element={<InstanceExperimentalSettings />} />
+              <Route path="plugins" element={<PluginManager />} />
+              <Route path="plugins/:pluginId" element={<PluginSettings />} />
+              <Route path="adapters" element={<AdapterManager />} />
+            </Route>
           </Route>
           <Route path="companies" element={<UnprefixedBoardRedirect />} />
           <Route path="issues" element={<UnprefixedBoardRedirect />} />

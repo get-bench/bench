@@ -12,6 +12,14 @@ Where most agent platforms build a new place for AI to work (a portal, a chat in
 
 The Bench dashboard exists, but it is a **visibility and governance layer**, not the primary interface. Work happens where your team already works.
 
+### Coworker identity where teams already work
+
+Managers should not have to open Bench for every request. Day-to-day coordination stays in **email, Slack, Jira, Figma**, and the rest of your stack. Bench holds **configuration and policy**: who the coworker is, **their organizational work email** (provisioned in your tenant—Google Workspace, Microsoft 365, etc.—and recorded in Bench so IT and automations share one canonical address), **connector grants**, budgets, skills, and oversight.
+
+**Mail handoff (target experience):** Operations Cc or routes threads to the coworker’s **company-managed address** (for example `alex.bench@yourcompany.com`). **Bench does not host inboxes**—your tenant does. A future ingestion path (connector + heartbeat or webhook) reads that mailbox, turns signals into **tasks or runs**, and the coworker executes with the adapters and skills you configured—still governed from Bench, invisible until you need it.
+
+**Connector access:** When a coworker needs a tool that is not yet wired, operators raise a **connector access request** (tracked as work for the **people manager** or team owner), who completes OAuth or admin approval in **Board → Connectors**. The product stays honest: **identity and inbox delivery remain customer-owned**; Bench orchestrates assignments, connectors, and auditability.
+
 ---
 
 ## The Core Mental Model: Contractors, Not Agents
@@ -49,9 +57,9 @@ PaperClip's agent runtime, skill system, and connector infrastructure are used u
 
 ---
 
-## The Onboarding Flow (Already Built)
+## The Onboarding Flow (Stable Shape, Evolving Toolchain)
 
-The onboarding is three steps and is already implemented. Do not change this.
+Onboarding stays **three steps** (company → coworker → launch). **Step structure should not change without an intentional product decision.** Toolchain rows are expected to **grow with the connector catalog** (e.g. design & research tools alongside engineering trackers).
 
 ### Step 1 — Company
 
@@ -71,18 +79,21 @@ Each role has a description and is priced at $39/mo (currently $0 for early acce
 
 ### Step 3 — Launch (Toolchain Setup)
 
-Map the apps this coworker will use. Organized by category:
+Map the apps this coworker will use. Organized by category (pick one option per row; optional rows can defer to the dashboard):
 
 - **Team chat** (required): Slack, Microsoft Teams, Webex/Cisco, Google Chat, Mattermost
 - **Email & calendar** (required): Outlook/M365, Gmail/Google Workspace, Apple Mail
 - **Code & repositories**: GitHub, GitLab, Bitbucket, Azure Repos
 - **Meetings**: Google Meet, Zoom, Microsoft Teams, Webex
 - **Work tracking**: Jira, Linear, Asana, Azure DevOps, GitHub Issues
-- **Docs & wiki**: Confluence, Notion, Google Docs/Drive, SharePoint
+- **Docs & wiki**: Confluence, Notion, Google Docs/Drive, SharePoint, other wiki/docs
+- **Design & research** (optional): Figma, Miro, Dovetail, Adobe (XD / Creative Cloud), Sketch, other—so designer-led roles can combine **Jira + Confluence + Figma** (and similar) in one pass without treating design tools as an afterthought
 
 Optional categories default to "Decide later in dashboard" so onboarding stays lightweight. Required categories (chat and email) must be selected before launch.
 
 At the bottom: **Adapter type** (Claude Code recommended) and **Model selection** (currently gpt-5.3-codex as placeholder).
+
+**Preset nudge:** Choosing **Product Designer** seeds sensible defaults (e.g. Figma, Jira, Confluence); operators can change any row before launch.
 
 ---
 
@@ -133,6 +144,8 @@ Multi-tenancy support. Each Bench customer can create multiple orgs (e.g. separa
 
 A global connector health dashboard. Shows all OAuth connections, their status, and which coworkers depend on them. One-click re-auth for expired tokens. Connector catalog for adding new integrations.
 
+**Access requests:** Coworkers do not silently gain production OAuth. When someone needs a net-new connector or scope expansion, the UI surfaces a **request to the manager** (task-oriented flow); the manager or admin completes wiring in Connectors and audit trails stay intact.
+
 #### Settings
 
 - Billing (subscription per coworker seat)
@@ -163,7 +176,7 @@ To keep the vision sharp:
 
 - **Not a workflow builder**: Bench coworkers are autonomous. You do not define step-by-step workflows. You give them a role and tools and they figure out the steps. (This is the key differentiator from Moveworks-style workflow automation.)
 - **Not a chatbot**: You do not talk to Bench. You talk to your coworker in Slack, just like you would a real person. Bench is the infrastructure behind them.
-- **Not a dashboard you live in**: The dashboard is for oversight, not daily use. If a manager is spending more than 10 minutes a day in the Bench dashboard, something is wrong with the product.
+- **Not a dashboard you live in**: The dashboard is for configuration, task overview, capacity, cost caps, connectors, and skills—not where managers spend every hour. If executive stakeholders live in Bench instead of their real tools, we have not delivered the vision (exceptions: admins, auditors, and deliberate oversight sessions).
 - **Not per-task pricing**: Coworkers are hired on a monthly subscription. Predictable cost, like a real contractor retainer.
 
 ---
@@ -207,6 +220,6 @@ Enterprises are not short on AI tools. They are short on AI that fits into how t
 
 ---
 
-*Document version: 0.1 — May 2026*
+*Document version: 0.2 — May 2026*
 
-*Share with Cursor to guide dashboard build. Onboarding (screens 1–3) is already implemented and should not be modified.*
+*Share with Cursor to guide dashboard build. Keep the three-step onboarding skeleton; extend toolchain categories and dashboard surfaces as the connector catalog and enterprise flows mature.*

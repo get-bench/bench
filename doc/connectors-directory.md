@@ -45,7 +45,7 @@ Prominent entries include:
 - **Meetings:** Zoom, Google Meet, Teams meetings, Loom  
 - **Engineering:** GitHub, GitLab, Bitbucket, Azure Repos  
 - **Delivery:** Jira, Linear, Asana, Azure Boards, GitHub Issues, ClickUp, Trello, Height, Shortcut, monday.com  
-- **Knowledge:** Confluence, Notion, Google Drive & Docs, SharePoint, Airtable, Webflow, WordPress, Sanity  
+- **Knowledge:** Confluence, Notion, Google Drive & Docs, **Google Sheets** (separate from Drive so analyst presets can scope to spreadsheets only), SharePoint, Airtable, Webflow, WordPress, Sanity  
 - **Design & research:** Figma, Framer, Sketch, Miro, Adobe XD, InVision, Canva, Dovetail, Hotjar, Affinity  
 - **Platforms:** Docker, Kubernetes, major clouds, datastores, observability, Segment, Amplitude, CI systems, messaging/commerce APIs — see `CONNECTOR_CATALOG` for the full list.  
 - **Trust:** Okta, Entra ID, Auth0, Workday (integration programs — regulated data)

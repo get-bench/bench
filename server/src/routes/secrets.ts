@@ -8,7 +8,12 @@ import {
   updateSecretSchema,
 } from "@bench/shared";
 import { validate } from "../middleware/validate.js";
-import { assertBoard, assertCompanyAccess } from "./authz.js";
+import {
+  assertBoard,
+  assertCompanyAccess,
+  assertWorkspaceCapability,
+  getActorRoleForCompany,
+} from "./authz.js";
 import { logActivity, secretService } from "../services/index.js";
 
 export function secretRoutes(db: Db) {
@@ -39,7 +44,10 @@ export function secretRoutes(db: Db) {
   router.post("/companies/:companyId/secrets", validate(createSecretSchema), async (req, res) => {
     assertBoard(req);
     const companyId = req.params.companyId as string;
-    assertCompanyAccess(req, companyId);
+    // Secrets back connector credentials, OAuth tokens, webhook signing keys, etc.
+    // Per roles.md §5 (Settings → Connectors), creating/rotating workspace
+    // secrets is Owner+Admin only.
+    assertWorkspaceCapability(req, companyId, "workspace:connectors:wire");
 
     const created = await svc.create(
       companyId,
@@ -57,6 +65,7 @@ export function secretRoutes(db: Db) {
       companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, companyId),
       action: "secret.created",
       entityType: "secret",
       entityId: created.id,
@@ -74,7 +83,7 @@ export function secretRoutes(db: Db) {
       res.status(404).json({ error: "Secret not found" });
       return;
     }
-    assertCompanyAccess(req, existing.companyId);
+    assertWorkspaceCapability(req, existing.companyId, "workspace:connectors:wire");
 
     const rotated = await svc.rotate(
       id,
@@ -89,6 +98,7 @@ export function secretRoutes(db: Db) {
       companyId: rotated.companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, rotated.companyId),
       action: "secret.rotated",
       entityType: "secret",
       entityId: rotated.id,
@@ -106,7 +116,7 @@ export function secretRoutes(db: Db) {
       res.status(404).json({ error: "Secret not found" });
       return;
     }
-    assertCompanyAccess(req, existing.companyId);
+    assertWorkspaceCapability(req, existing.companyId, "workspace:connectors:wire");
 
     const updated = await svc.update(id, {
       name: req.body.name,
@@ -123,6 +133,7 @@ export function secretRoutes(db: Db) {
       companyId: updated.companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, updated.companyId),
       action: "secret.updated",
       entityType: "secret",
       entityId: updated.id,
@@ -140,7 +151,7 @@ export function secretRoutes(db: Db) {
       res.status(404).json({ error: "Secret not found" });
       return;
     }
-    assertCompanyAccess(req, existing.companyId);
+    assertWorkspaceCapability(req, existing.companyId, "workspace:connectors:wire");
 
     const removed = await svc.remove(id);
     if (!removed) {
@@ -152,6 +163,7 @@ export function secretRoutes(db: Db) {
       companyId: removed.companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, removed.companyId),
       action: "secret.deleted",
       entityType: "secret",
       entityId: removed.id,

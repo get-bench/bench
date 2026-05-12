@@ -104,6 +104,7 @@ function createAgent(): Agent {
     name: "Routine Agent",
     role: "engineer",
     title: null,
+    coworkerEmail: null,
     status: "active",
     reportsTo: null,
     capabilities: null,

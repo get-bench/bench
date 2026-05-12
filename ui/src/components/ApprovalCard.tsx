@@ -22,9 +22,41 @@ function statusIcon(status: string) {
   return null;
 }
 
+const ONE_HOUR_MS = 60 * 60 * 1000;
+const STALE_THRESHOLD_MS = 24 * ONE_HOUR_MS;
+const OVERDUE_THRESHOLD_MS = 72 * ONE_HOUR_MS;
+
+/**
+ * Age signal for *open* approvals (pending / revision_requested). Returns
+ * `null` for fresh requests and resolved statuses so we don't shame someone
+ * for an approved hire that happens to be three weeks old.
+ *
+ * Thresholds match the policy in `doc/plans/2026-05-11-rbac-and-hire-requests.md`
+ * §9 (P1 A8): amber after 24h, red after 72h.
+ */
+function approvalAgeSignal(approval: Approval): {
+  tone: "amber" | "red";
+  label: string;
+} | null {
+  if (approval.status !== "pending" && approval.status !== "revision_requested") {
+    return null;
+  }
+  const created = new Date(approval.createdAt).getTime();
+  if (!Number.isFinite(created)) return null;
+  const ageMs = Date.now() - created;
+  if (ageMs >= OVERDUE_THRESHOLD_MS) {
+    return { tone: "red", label: "Overdue" };
+  }
+  if (ageMs >= STALE_THRESHOLD_MS) {
+    return { tone: "amber", label: "Stale" };
+  }
+  return null;
+}
+
 export function ApprovalCard({
   approval,
   requesterAgent,
+  viewerUserId = null,
   onApprove,
   onReject,
   onOpen,
@@ -34,6 +66,13 @@ export function ApprovalCard({
 }: {
   approval: Approval;
   requesterAgent: Agent | null;
+  /**
+   * The signed-in user's ID. When provided, the Approve/Reject buttons are
+   * suppressed if the viewer is the requester (separation-of-duties — see
+   * `doc/roles.md`). Server enforces this with a 403; UI hides to avoid the
+   * footgun.
+   */
+  viewerUserId?: string | null;
   onApprove?: () => void;
   onReject?: () => void;
   onOpen?: () => void;
@@ -45,11 +84,20 @@ export function ApprovalCard({
   const Icon = typeIcon[approval.type] ?? defaultTypeIcon;
   const kindLabel = typeLabel[approval.type] ?? approval.type;
   const subject = approvalSubject(payload);
+  const isOwnRequest =
+    !!viewerUserId
+    && !!approval.requestedByUserId
+    && approval.requestedByUserId === viewerUserId;
   const showResolutionButtons =
     Boolean(onApprove && onReject) &&
     approval.type !== "budget_override_required" &&
+    (approval.status === "pending" || approval.status === "revision_requested") &&
+    !isOwnRequest;
+  const showAwaitingOthersBadge =
+    isOwnRequest &&
     (approval.status === "pending" || approval.status === "revision_requested");
-  const hasFooter = showResolutionButtons || Boolean(detailLink || onOpen);
+  const ageSignal = approvalAgeSignal(approval);
+  const hasFooter = showResolutionButtons || showAwaitingOthersBadge || Boolean(detailLink || onOpen);
 
   return (
     <div className="rounded-xl border border-border/70 bg-card p-4 shadow-sm">
@@ -78,8 +126,34 @@ export function ApprovalCard({
                 <h3 className="text-base font-semibold leading-6 text-foreground">
                   {subject ?? kindLabel}
                 </h3>
-                <p className="text-xs leading-5 text-muted-foreground">
-                  Approval request created {timeAgo(approval.createdAt)}
+                <p
+                  className={cn(
+                    "flex flex-wrap items-center gap-1.5 text-xs leading-5",
+                    ageSignal?.tone === "red"
+                      ? "text-red-600 dark:text-red-400"
+                      : ageSignal?.tone === "amber"
+                        ? "text-amber-600 dark:text-amber-400"
+                        : "text-muted-foreground",
+                  )}
+                >
+                  <span>Approval request created {timeAgo(approval.createdAt)}</span>
+                  {ageSignal && (
+                    <span
+                      className={cn(
+                        "inline-flex items-center rounded-full border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide",
+                        ageSignal.tone === "red"
+                          ? "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-300"
+                          : "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-300",
+                      )}
+                      title={
+                        ageSignal.tone === "red"
+                          ? "This request has been waiting more than 72 hours."
+                          : "This request has been waiting more than 24 hours."
+                      }
+                    >
+                      {ageSignal.label}
+                    </span>
+                  )}
                 </p>
               </div>
             </div>
@@ -120,15 +194,42 @@ export function ApprovalCard({
                 >
                   {pendingAction === "approve" ? "Approving..." : "Approve"}
                 </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={onReject}
-                  disabled={isPending}
-                >
-                  {pendingAction === "reject" ? "Rejecting..." : "Reject"}
-                </Button>
+                {/*
+                  Reject is destructive — the requester deserves a reason. When a
+                  detailLink is available we route Reject to the approval detail
+                  page so the reviewer must type a decision note (enforced in
+                  ApprovalDetail). When there's no detail page (storybook, legacy
+                  callers) we fall back to the inline onReject callback.
+                */}
+                {detailLink ? (
+                  <Link
+                    to={detailLink}
+                    className={cn(
+                      buttonVariants({ variant: "destructive", size: "sm" }),
+                    )}
+                    aria-label="Reject (opens detail page so you can add a note)"
+                  >
+                    Reject…
+                  </Link>
+                ) : (
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    onClick={onReject}
+                    disabled={isPending}
+                  >
+                    {pendingAction === "reject" ? "Rejecting..." : "Reject"}
+                  </Button>
+                )}
               </>
+            )}
+            {showAwaitingOthersBadge && (
+              <span
+                className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-300"
+                title="You filed this request — another Workspace Owner or Admin must review it."
+              >
+                Awaiting another reviewer
+              </span>
             )}
           </div>
           {(detailLink || onOpen) ? (

@@ -13,6 +13,7 @@ function makeAgent(id: string, name: string): Agent {
     name,
     role: "engineer",
     title: null,
+    coworkerEmail: null,
     icon: null,
     status: "idle",
     reportsTo: null,

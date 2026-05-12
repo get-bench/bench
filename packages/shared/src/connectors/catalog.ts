@@ -94,6 +94,14 @@ const CONNECTOR_CATALOG_CORE: ConnectorDefinition[] = [
       "Send a test message from Bench to a private channel to verify token health.",
     ),
     learnMoreUrl: "https://api.slack.com/authentication/oauth-v2",
+    sampleInvocableTools: [
+      "conversations.history",
+      "chat.postMessage",
+      "users.info",
+      "reactions.add",
+      "files.sharedPublicURL",
+      "bookmarks.add",
+    ],
   },
   {
     id: "microsoft-teams",
@@ -192,6 +200,14 @@ const CONNECTOR_CATALOG_CORE: ConnectorDefinition[] = [
       "Verify receive, label/filter behavior, and event creation in a test calendar.",
     ),
     learnMoreUrl: "https://developers.google.com/workspace/gmail/api/guides",
+    sampleInvocableTools: [
+      "users.messages.list",
+      "users.messages.get",
+      "users.messages.send",
+      "users.labels.list",
+      "users.threads.list",
+      "users.drafts.create",
+    ],
   },
   {
     id: "imap-smtp",
@@ -269,6 +285,14 @@ const CONNECTOR_CATALOG_CORE: ConnectorDefinition[] = [
       "Open a test PR comment webhook or poll to confirm API access.",
     ),
     learnMoreUrl: "https://docs.github.com/apps/creating-github-apps",
+    sampleInvocableTools: [
+      "repos.get",
+      "pulls.list",
+      "issues.create",
+      "search.code",
+      "actions.listWorkflowRunsForRepo",
+      "git.createBlob",
+    ],
   },
   {
     id: "gitlab",
@@ -327,6 +351,14 @@ const CONNECTOR_CATALOG_CORE: ConnectorDefinition[] = [
       "Verify create/transition permissions with a dummy ticket.",
     ),
     learnMoreUrl: "https://developer.atlassian.com/cloud/jira/platform/rest/v3/",
+    sampleInvocableTools: [
+      "searchIssues",
+      "getIssue",
+      "createIssue",
+      "transitionIssue",
+      "addComment",
+      "getProject",
+    ],
   },
   {
     id: "linear",
@@ -341,6 +373,14 @@ const CONNECTOR_CATALOG_CORE: ConnectorDefinition[] = [
       "Validate issue create/update and comment flows.",
     ),
     learnMoreUrl: "https://developers.linear.app/docs/graphql/working-with-the-api",
+    sampleInvocableTools: [
+      "issues.list",
+      "issues.create",
+      "comments.create",
+      "projects.list",
+      "workflowStates.list",
+      "attachments.linkURL",
+    ],
   },
   {
     id: "asana",
@@ -410,6 +450,14 @@ const CONNECTOR_CATALOG_CORE: ConnectorDefinition[] = [
       "Validate read vs write needs — avoid full workspace scope.",
     ),
     learnMoreUrl: "https://developers.notion.com/docs/getting-started",
+    sampleInvocableTools: [
+      "pages.create",
+      "pages.retrieve",
+      "databases.query",
+      "blocks.children.append",
+      "search",
+      "comments.create",
+    ],
   },
   {
     id: "google-drive",

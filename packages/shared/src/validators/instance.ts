@@ -24,6 +24,14 @@ export const backupRetentionPolicySchema = z.object({
   monthlyMonths: presetSchema(MONTHLY_RETENTION_PRESETS, "monthlyMonths").default(DEFAULT_BACKUP_RETENTION.monthlyMonths),
 });
 
+export const instanceSsoOidcSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    issuerUrl: z.string().max(2048).default(""),
+    clientId: z.string().max(512).default(""),
+  })
+  .strict();
+
 export const instanceGeneralSettingsSchema = z.object({
   censorUsernameInLogs: z.boolean().default(false),
   keyboardShortcuts: z.boolean().default(false),
@@ -31,9 +39,23 @@ export const instanceGeneralSettingsSchema = z.object({
     DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE,
   ),
   backupRetention: backupRetentionPolicySchema.default(DEFAULT_BACKUP_RETENTION),
+  ssoOidc: instanceSsoOidcSchema.default({
+    enabled: false,
+    issuerUrl: "",
+    clientId: "",
+  }),
 }).strict();
 
-export const patchInstanceGeneralSettingsSchema = instanceGeneralSettingsSchema.partial();
+/** PATCH allows partial nested `ssoOidc` updates. */
+export const patchInstanceGeneralSettingsSchema = z
+  .object({
+    censorUsernameInLogs: z.boolean().optional(),
+    keyboardShortcuts: z.boolean().optional(),
+    feedbackDataSharingPreference: feedbackDataSharingPreferenceSchema.optional(),
+    backupRetention: backupRetentionPolicySchema.optional(),
+    ssoOidc: instanceSsoOidcSchema.partial().optional(),
+  })
+  .strict();
 
 export const instanceExperimentalSettingsSchema = z.object({
   enableEnvironments: z.boolean().default(false),
@@ -46,6 +68,12 @@ export const instanceExperimentalSettingsSchema = z.object({
     .min(MIN_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS)
     .max(MAX_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS)
     .default(DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS),
+  /**
+   * Connector Runtime spine (CRP1). Off by default. When off, install/callback/
+   * webhook routes 404 and the runtime services refuse to write inbound or
+   * outbound rows. Vendor-specific sub-flags will live alongside this in CRP5+.
+   */
+  enableConnectorRuntime: z.boolean().default(false),
 }).strict();
 
 export const patchInstanceExperimentalSettingsSchema = instanceExperimentalSettingsSchema.partial();

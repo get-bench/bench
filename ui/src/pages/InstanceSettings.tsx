@@ -33,8 +33,8 @@ export function InstanceSettings() {
 
   useEffect(() => {
     setBreadcrumbs([
-      { label: "Instance Settings" },
-      { label: "Heartbeats" },
+      { label: "Bench settings", href: "/bench/settings/general" },
+      { label: "Coworker schedules" },
     ]);
   }, [setBreadcrumbs]);
 
@@ -168,10 +168,10 @@ export function InstanceSettings() {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Settings className="h-5 w-5 text-muted-foreground" />
-          <h1 className="text-lg font-semibold">Scheduler Heartbeats</h1>
+          <h1 className="text-lg font-semibold">Coworker schedules</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Agents with a timer heartbeat enabled across all of your companies.
+          Coworkers set to wake up on a recurring timer across all of your workspaces.
         </p>
       </div>
 

@@ -87,7 +87,7 @@ describe("SidebarAccountMenu", () => {
           <DashboardPersonaProvider>
             <SidebarAccountMenu
               deploymentMode="authenticated"
-              instanceSettingsTarget="/instance/settings/general"
+              instanceSettingsTarget="/bench/settings/general"
               version="1.2.3"
             />
           </DashboardPersonaProvider>
@@ -141,7 +141,7 @@ describe("SidebarAccountMenu", () => {
           <DashboardPersonaProvider>
             <SidebarAccountMenu
               deploymentMode="local_trusted"
-              instanceSettingsTarget="/instance/settings/general"
+              instanceSettingsTarget="/bench/settings/general"
               version="0.3.1"
             />
           </DashboardPersonaProvider>

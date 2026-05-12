@@ -24,9 +24,11 @@ export function buildNewAgentHirePayload(input: {
     managerEmail,
   } = input;
 
-  const mgr = managerEmail?.trim()
-    ? { [BENCH_MANAGER_EMAIL_METADATA_KEY]: normalizePersonaEmail(managerEmail.trim()) }
-    : null;
+  const metadata: Record<string, unknown> = {};
+  if (managerEmail?.trim()) {
+    metadata[BENCH_MANAGER_EMAIL_METADATA_KEY] = normalizePersonaEmail(managerEmail.trim());
+  }
+  const hasMetadata = Object.keys(metadata).length > 0;
 
   return {
     name: name.trim(),
@@ -44,6 +46,6 @@ export function buildNewAgentHirePayload(input: {
       cheapModelEnabled: configValues.cheapModelEnabled,
     }),
     budgetMonthlyCents: 0,
-    ...(mgr ? { metadata: mgr } : {}),
+    ...(hasMetadata ? { metadata } : {}),
   };
 }

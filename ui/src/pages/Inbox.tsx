@@ -60,7 +60,7 @@ import { cn } from "../lib/utils";
 import { StatusBadge } from "../components/StatusBadge";
 import { approvalLabel, defaultTypeIcon, typeIcon } from "../components/ApprovalPayload";
 import { timeAgo } from "../lib/timeAgo";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -385,6 +385,7 @@ export function FailedRunInboxRow({
 function ApprovalInboxRow({
   approval,
   requesterName,
+  viewerUserId,
   onApprove,
   onReject,
   isPending,
@@ -397,6 +398,7 @@ function ApprovalInboxRow({
 }: {
   approval: Approval;
   requesterName: string | null;
+  viewerUserId: string | null;
   onApprove: () => void;
   onReject: () => void;
   isPending: boolean;
@@ -409,9 +411,19 @@ function ApprovalInboxRow({
 }) {
   const Icon = typeIcon[approval.type] ?? defaultTypeIcon;
   const label = approvalLabel(approval.type, approval.payload as Record<string, unknown> | null);
+  // Separation of duties: the requester must NOT see Approve/Reject on their own
+  // request. Server enforces this with a 403; UI hides the buttons so the row
+  // looks like the read-only "pending review" state to the requester.
+  const isOwnRequest =
+    !!viewerUserId
+    && !!approval.requestedByUserId
+    && approval.requestedByUserId === viewerUserId;
   const showResolutionButtons =
-    approval.type !== "budget_override_required" &&
-    ACTIONABLE_APPROVAL_STATUSES.has(approval.status);
+    approval.type !== "budget_override_required"
+    && ACTIONABLE_APPROVAL_STATUSES.has(approval.status)
+    && !isOwnRequest;
+  const showAwaitingOthersBadge =
+    isOwnRequest && ACTIONABLE_APPROVAL_STATUSES.has(approval.status);
   const showUnreadSlot = unreadState !== null;
   const showUnreadDot = unreadState === "visible" || unreadState === "fading";
 
@@ -487,16 +499,30 @@ function ApprovalInboxRow({
             >
               Approve
             </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              className="h-8 px-3"
-              onClick={onReject}
-              disabled={isPending}
+            {/*
+              Reject is destructive — capture a reason on the detail page so the
+              requester is never told "rejected" with no explanation. We omit
+              `onReject` here on purpose; the prop stays in the API for legacy /
+              storybook usage but the inbox quick-flow always navigates.
+            */}
+            <Link
+              to={`/approvals/${approval.id}`}
+              className={cn(
+                buttonVariants({ variant: "destructive", size: "sm" }),
+                "h-8 px-3",
+              )}
+              aria-label="Reject (opens detail page so you can add a note)"
             >
-              Reject
-            </Button>
+              Reject…
+            </Link>
           </div>
+        ) : showAwaitingOthersBadge ? (
+          <span
+            className="hidden shrink-0 items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-300 sm:inline-flex"
+            title="You filed this request — another Workspace Owner or Admin must review it."
+          >
+            Awaiting another reviewer
+          </span>
         ) : null}
       </div>
       {showResolutionButtons ? (
@@ -509,16 +535,21 @@ function ApprovalInboxRow({
           >
             Approve
           </Button>
-          <Button
-            variant="destructive"
-            size="sm"
-            className="h-8 px-3"
-            onClick={onReject}
-            disabled={isPending}
+          <Link
+            to={`/approvals/${approval.id}`}
+            className={cn(
+              buttonVariants({ variant: "destructive", size: "sm" }),
+              "h-8 px-3",
+            )}
+            aria-label="Reject (opens detail page so you can add a note)"
           >
-            Reject
-          </Button>
+            Reject…
+          </Link>
         </div>
+      ) : showAwaitingOthersBadge ? (
+        <p className="mt-2 text-xs text-amber-300 sm:hidden">
+          You filed this request — another Workspace Owner or Admin must review it.
+        </p>
       ) : null}
     </div>
   );
@@ -2331,6 +2362,7 @@ export function Inbox() {
                           approval={item.approval}
                           selected={isSelected}
                           requesterName={agentName(item.approval.requestedByAgentId)}
+                          viewerUserId={currentUserId}
                           onApprove={() => approveMutation.mutate(item.approval.id)}
                           onReject={() => rejectMutation.mutate(item.approval.id)}
                           isPending={approveMutation.isPending || rejectMutation.isPending}

@@ -3,8 +3,10 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "@/lib/router";
 import { useCompany } from "../context/CompanyContext";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
+import { useDashboardPersona } from "../context/DashboardPersonaContext";
 import { agentsApi } from "../api/agents";
 import { companySkillsApi } from "../api/companySkills";
+import { normalizePersonaEmail } from "../lib/manager-scope";
 import { queryKeys } from "../lib/queryKeys";
 import { HIRABLE_COWORKER_ROLES, type AdapterEnvironmentTestResult } from "@bench/shared";
 import { Button } from "@/components/ui/button";
@@ -68,7 +70,10 @@ export function NewAgent() {
   const [title, setTitle] = useState("");
   const [role, setRole] = useState("general");
   const [reportsTo, setReportsTo] = useState<string | null>(null);
-  const [managerEmail, setManagerEmail] = useState("");
+  const { sessionEmail } = useDashboardPersona();
+  const defaultManagerEmail = sessionEmail ? normalizePersonaEmail(sessionEmail) : "";
+  const [managerEmail, setManagerEmail] = useState<string>(defaultManagerEmail);
+  const [managerEmailUserEdited, setManagerEmailUserEdited] = useState(false);
   const [configValues, setConfigValues] = useState<CreateConfigValues>(defaultCreateValues);
   const [selectedSkillKeys, setSelectedSkillKeys] = useState<string[]>([]);
   const [roleOpen, setRoleOpen] = useState(false);
@@ -124,6 +129,19 @@ export function NewAgent() {
       if (!title) setTitle("Admin");
     }
   }, [isFirstAgent]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Hydrate the People-manager email default from the signed-in user once the
+  // session resolves. Without a default, every coworker shipped here lands with
+  // metadata.benchManagerEmail unset, which makes them invisible in Manager
+  // view (the manager dashboard filters by exact email match). Defaulting to
+  // the hiring user matches the most common case (manager hires for self) and
+  // is trivially overridden when an admin hires on behalf of someone else.
+  useEffect(() => {
+    if (managerEmailUserEdited) return;
+    if (isFirstAgent) return;
+    const next = sessionEmail ? normalizePersonaEmail(sessionEmail) : "";
+    if (next !== managerEmail) setManagerEmail(next);
+  }, [sessionEmail, isFirstAgent, managerEmailUserEdited, managerEmail]);
 
   useEffect(() => {
     const requested = presetAdapterType;
@@ -296,9 +314,25 @@ export function NewAgent() {
 
         {!isFirstAgent ? (
           <div className="px-4 py-3 border-t border-border space-y-2 max-w-lg">
-            <Label htmlFor="hire-manager-email" className="text-xs text-muted-foreground">
-              People manager email (optional)
-            </Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="hire-manager-email" className="text-xs text-muted-foreground">
+                People manager email
+              </Label>
+              {sessionEmail
+                && managerEmail.trim() !== normalizePersonaEmail(sessionEmail)
+                && managerEmail.trim().length > 0 ? (
+                <button
+                  type="button"
+                  className="text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground"
+                  onClick={() => {
+                    setManagerEmail(normalizePersonaEmail(sessionEmail));
+                    setManagerEmailUserEdited(false);
+                  }}
+                >
+                  Reset to me
+                </button>
+              ) : null}
+            </div>
             <input
               id="hire-manager-email"
               type="email"
@@ -306,11 +340,16 @@ export function NewAgent() {
               placeholder="manager@company.com — scopes Manager view"
               className="w-full rounded-md border border-border bg-transparent px-3 py-2 text-sm outline-none placeholder:text-muted-foreground/50"
               value={managerEmail}
-              onChange={(e) => setManagerEmail(e.target.value)}
+              onChange={(e) => {
+                setManagerEmail(e.target.value);
+                setManagerEmailUserEdited(true);
+              }}
             />
             <p className="text-[11px] text-muted-foreground leading-snug">
-              Stored on the hire as <span className="font-mono">benchManagerEmail</span> (normalized). The manager sees this
-              coworker when signed in with that address.
+              Defaults to <span className="font-mono">{sessionEmail ?? "(no signed-in email)"}</span> so this
+              coworker appears in your Manager view. Override if you&apos;re hiring on behalf of another
+              manager. Clear to leave the coworker unassigned (visible in Admin view only). Stored as{" "}
+              <span className="font-mono">benchManagerEmail</span>, normalized to lowercase.
             </p>
           </div>
         ) : null}

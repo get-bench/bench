@@ -49,6 +49,24 @@ export function approvalRoutes(
     return approval;
   }
 
+  /**
+   * Separation-of-duties: the human who requested an approval (e.g. a People
+   * Manager filing a hire request) must NOT be able to approve / reject /
+   * request-revision on their own request. Any decision must come from a
+   * different signed-in user. Returns true when the action should be blocked.
+   *
+   * `decidedByUserId === "board"` means a board (no signed-in user) is acting
+   * — that case can only happen in self-hosted local mode and we already gate
+   * it with `assertBoard`; we still apply the rule when both ids are "board"
+   * (no real identity to distinguish), erring on the side of allow because the
+   * local-board operator is the only operator that exists.
+   */
+  function isSelfDecision(approval: { requestedByUserId: string | null }, decidedByUserId: string) {
+    if (!approval.requestedByUserId) return false;
+    if (decidedByUserId === "board") return false;
+    return approval.requestedByUserId === decidedByUserId;
+  }
+
   router.get("/companies/:companyId/approvals", async (req, res) => {
     const companyId = req.params.companyId as string;
     assertCompanyAccess(req, companyId);
@@ -136,11 +154,20 @@ export function approvalRoutes(
   router.post("/approvals/:id/approve", validate(resolveApprovalSchema), async (req, res) => {
     assertBoard(req);
     const id = req.params.id as string;
-    if (!(await requireApprovalAccess(req, id))) {
+    const existing = await requireApprovalAccess(req, id);
+    if (!existing) {
       res.status(404).json({ error: "Approval not found" });
       return;
     }
     const decidedByUserId = req.actor.userId ?? "board";
+    if (isSelfDecision(existing, decidedByUserId)) {
+      res.status(403).json({
+        error: "self_approval_forbidden",
+        message:
+          "You can't approve a request you filed yourself. Ask another Workspace Owner or Admin to review it.",
+      });
+      return;
+    }
     const { approval, applied } = await svc.approve(id, decidedByUserId, req.body.decisionNote);
 
     if (applied) {
@@ -232,11 +259,20 @@ export function approvalRoutes(
   router.post("/approvals/:id/reject", validate(resolveApprovalSchema), async (req, res) => {
     assertBoard(req);
     const id = req.params.id as string;
-    if (!(await requireApprovalAccess(req, id))) {
+    const existing = await requireApprovalAccess(req, id);
+    if (!existing) {
       res.status(404).json({ error: "Approval not found" });
       return;
     }
     const decidedByUserId = req.actor.userId ?? "board";
+    if (isSelfDecision(existing, decidedByUserId)) {
+      res.status(403).json({
+        error: "self_approval_forbidden",
+        message:
+          "You can't reject a request you filed yourself. Cancel it from your inbox instead, or ask another Workspace Owner or Admin to review it.",
+      });
+      return;
+    }
     const { approval, applied } = await svc.reject(id, decidedByUserId, req.body.decisionNote);
 
     if (applied) {
@@ -260,11 +296,20 @@ export function approvalRoutes(
     async (req, res) => {
       assertBoard(req);
       const id = req.params.id as string;
-      if (!(await requireApprovalAccess(req, id))) {
+      const existing = await requireApprovalAccess(req, id);
+      if (!existing) {
         res.status(404).json({ error: "Approval not found" });
         return;
       }
       const decidedByUserId = req.actor.userId ?? "board";
+      if (isSelfDecision(existing, decidedByUserId)) {
+        res.status(403).json({
+          error: "self_approval_forbidden",
+          message:
+            "You can't request revisions on a request you filed yourself. Edit your draft directly or cancel it.",
+        });
+        return;
+      }
       const approval = await svc.requestRevision(id, decidedByUserId, req.body.decisionNote);
 
       await logActivity(db, {

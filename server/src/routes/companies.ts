@@ -24,7 +24,14 @@ import {
   logActivity,
 } from "../services/index.js";
 import type { StorageService } from "../storage/types.js";
-import { assertBoard, assertCompanyAccess, assertInstanceAdmin, getActorInfo } from "./authz.js";
+import {
+  assertBoard,
+  assertCompanyAccess,
+  assertInstanceAdmin,
+  assertWorkspaceCapability,
+  getActorInfo,
+  getActorRoleForCompany,
+} from "./authz.js";
 
 export function companyRoutes(db: Db, storage?: StorageService) {
   const router = Router();
@@ -60,8 +67,11 @@ export function companyRoutes(db: Db, storage?: StorageService) {
   }
 
   async function assertCanUpdateBranding(req: Request, companyId: string) {
+    if (req.actor.type === "board") {
+      assertWorkspaceCapability(req, companyId, "workspace:branding:edit");
+      return;
+    }
     assertCompanyAccess(req, companyId);
-    if (req.actor.type === "board") return;
     if (!req.actor.agentId) throw forbidden("Agent authentication required");
 
     const actorAgent = await agents.getById(req.actor.agentId);
@@ -74,8 +84,19 @@ export function companyRoutes(db: Db, storage?: StorageService) {
   }
 
   async function assertCanManagePortability(req: Request, companyId: string, capability: "imports" | "exports") {
+    if (req.actor.type === "board") {
+      // Per roles.md §5: Owner+Admin can export, Owner only can import (replaces
+      // workspace data). The matrix capability already encodes this asymmetry.
+      assertWorkspaceCapability(
+        req,
+        companyId,
+        capability === "exports"
+          ? "workspace:portability:export"
+          : "workspace:portability:import",
+      );
+      return;
+    }
     assertCompanyAccess(req, companyId);
-    if (req.actor.type === "board") return;
     if (!req.actor.agentId) throw forbidden("Agent authentication required");
 
     const actorAgent = await agents.getById(req.actor.agentId);
@@ -185,6 +206,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
       companyId: result.company.id,
       actorType: actor.actorType,
       actorId: actor.actorId,
+      actorRole: getActorRoleForCompany(req, result.company.id),
       action: "company.imported",
       entityType: "company",
       entityId: result.company.id,
@@ -248,6 +270,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
       companyId: result.company.id,
       actorType: actor.actorType,
       actorId: actor.actorId,
+      actorRole: getActorRoleForCompany(req, result.company.id),
       entityType: "company",
       entityId: result.company.id,
       agentId: actor.agentId,
@@ -275,6 +298,9 @@ export function companyRoutes(db: Db, storage?: StorageService) {
       companyId: company.id,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      // Workspace creation is gated on instance admin (or local boot); record
+      // the elevated role for the audit trail.
+      actorRole: getActorRoleForCompany(req, company.id),
       action: "company.created",
       entityType: "company",
       entityId: company.id,
@@ -297,7 +323,15 @@ export function companyRoutes(db: Db, storage?: StorageService) {
 
   router.patch("/:companyId", async (req, res) => {
     const companyId = req.params.companyId as string;
-    assertCompanyAccess(req, companyId);
+    // Per roles.md §5: editing workspace general settings (name, description,
+    // prefix, feedback sharing, etc.) requires Owner or Admin. Branding-only
+    // edits coming from an Admin coworker (`agent.role === 'admin'`) keep
+    // their existing path below.
+    if (req.actor.type === "board") {
+      assertWorkspaceCapability(req, companyId, "workspace:settings:general:edit");
+    } else {
+      assertCompanyAccess(req, companyId);
+    }
 
     const actor = getActorInfo(req);
     const existingCompany = await svc.getById(companyId);
@@ -346,6 +380,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
       actorId: actor.actorId,
       agentId: actor.agentId,
       runId: actor.runId,
+      actorRole: getActorRoleForCompany(req, companyId),
       action: "company.updated",
       entityType: "company",
       entityId: companyId,
@@ -369,6 +404,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
       actorId: actor.actorId,
       agentId: actor.agentId,
       runId: actor.runId,
+      actorRole: getActorRoleForCompany(req, companyId),
       action: "company.branding_updated",
       entityType: "company",
       entityId: companyId,
@@ -380,7 +416,8 @@ export function companyRoutes(db: Db, storage?: StorageService) {
   router.post("/:companyId/archive", async (req, res) => {
     assertBoard(req);
     const companyId = req.params.companyId as string;
-    assertCompanyAccess(req, companyId);
+    // Archive is a soft form of `transfer_or_delete` per roles.md §5.
+    assertWorkspaceCapability(req, companyId, "workspace:transfer_or_delete");
     const company = await svc.archive(companyId);
     if (!company) {
       res.status(404).json({ error: "Company not found" });
@@ -390,6 +427,7 @@ export function companyRoutes(db: Db, storage?: StorageService) {
       companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, companyId),
       action: "company.archived",
       entityType: "company",
       entityId: companyId,
@@ -400,7 +438,8 @@ export function companyRoutes(db: Db, storage?: StorageService) {
   router.delete("/:companyId", async (req, res) => {
     assertBoard(req);
     const companyId = req.params.companyId as string;
-    assertCompanyAccess(req, companyId);
+    // Hard delete: Owner only per roles.md §5 ("Transfer / delete workspace").
+    assertWorkspaceCapability(req, companyId, "workspace:transfer_or_delete");
     const company = await svc.remove(companyId);
     if (!company) {
       res.status(404).json({ error: "Company not found" });

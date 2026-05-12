@@ -4,8 +4,11 @@ import {
   DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE,
   DEFAULT_BACKUP_RETENTION,
   DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS,
+  DEFAULT_SSO_OIDC,
   instanceGeneralSettingsSchema,
+  instanceSsoOidcSchema,
   type InstanceGeneralSettings,
+  type InstanceSsoOidcSettings,
   instanceExperimentalSettingsSchema,
   type InstanceExperimentalSettings,
   type PatchInstanceGeneralSettings,
@@ -16,6 +19,18 @@ import { eq } from "drizzle-orm";
 
 const DEFAULT_SINGLETON_KEY = "default";
 
+function normalizeSsoOidc(raw: unknown): InstanceSsoOidcSettings {
+  const parsed = instanceSsoOidcSchema.safeParse(raw ?? {});
+  if (parsed.success) {
+    return {
+      enabled: parsed.data.enabled ?? false,
+      issuerUrl: parsed.data.issuerUrl ?? "",
+      clientId: parsed.data.clientId ?? "",
+    };
+  }
+  return DEFAULT_SSO_OIDC;
+}
+
 function normalizeGeneralSettings(raw: unknown): InstanceGeneralSettings {
   const parsed = instanceGeneralSettingsSchema.safeParse(raw ?? {});
   if (parsed.success) {
@@ -25,6 +40,7 @@ function normalizeGeneralSettings(raw: unknown): InstanceGeneralSettings {
       feedbackDataSharingPreference:
         parsed.data.feedbackDataSharingPreference ?? DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE,
       backupRetention: parsed.data.backupRetention ?? DEFAULT_BACKUP_RETENTION,
+      ssoOidc: normalizeSsoOidc(parsed.data.ssoOidc),
     };
   }
   return {
@@ -32,6 +48,7 @@ function normalizeGeneralSettings(raw: unknown): InstanceGeneralSettings {
     keyboardShortcuts: false,
     feedbackDataSharingPreference: DEFAULT_FEEDBACK_DATA_SHARING_PREFERENCE,
     backupRetention: DEFAULT_BACKUP_RETENTION,
+    ssoOidc: DEFAULT_SSO_OIDC,
   };
 }
 
@@ -46,6 +63,7 @@ function normalizeExperimentalSettings(raw: unknown): InstanceExperimentalSettin
       issueGraphLivenessAutoRecoveryLookbackHours:
         parsed.data.issueGraphLivenessAutoRecoveryLookbackHours ??
         DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS,
+      enableConnectorRuntime: parsed.data.enableConnectorRuntime ?? false,
     };
   }
   return {
@@ -55,6 +73,7 @@ function normalizeExperimentalSettings(raw: unknown): InstanceExperimentalSettin
     enableIssueGraphLivenessAutoRecovery: false,
     issueGraphLivenessAutoRecoveryLookbackHours:
       DEFAULT_ISSUE_GRAPH_LIVENESS_AUTO_RECOVERY_LOOKBACK_HOURS,
+    enableConnectorRuntime: false,
   };
 }
 
@@ -122,10 +141,14 @@ export function instanceSettingsService(db: Db) {
 
     updateGeneral: async (patch: PatchInstanceGeneralSettings): Promise<InstanceSettings> => {
       const current = await getOrCreateRow();
-      const nextGeneral = normalizeGeneralSettings({
-        ...normalizeGeneralSettings(current.general),
-        ...patch,
-      });
+      const currentGeneral = normalizeGeneralSettings(current.general);
+      const { ssoOidc: patchSso, ...restPatch } = patch;
+      const mergedRaw = {
+        ...currentGeneral,
+        ...restPatch,
+        ...(patchSso !== undefined ? { ssoOidc: { ...currentGeneral.ssoOidc, ...patchSso } } : {}),
+      };
+      const nextGeneral = normalizeGeneralSettings(mergedRaw);
       const now = new Date();
       const [updated] = await db
         .update(instanceSettings)

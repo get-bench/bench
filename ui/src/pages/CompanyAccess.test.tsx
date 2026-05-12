@@ -211,9 +211,9 @@ describe("CompanyAccess", () => {
     await flushReact();
 
     expect(document.body.textContent).toContain("Implicit grants from role");
-    expect(document.body.textContent).toContain("Owner currently includes these permissions automatically.");
+    expect(document.body.textContent).toContain("Workspace Owner currently includes these permissions automatically.");
     expect(document.body.textContent).toContain(
-      "Included implicitly by the Owner role. Add an explicit grant only if it should stay after the role changes.",
+      "Included implicitly by the Workspace Owner role. Add an explicit grant only if it should stay after the role changes.",
     );
 
     await act(async () => {

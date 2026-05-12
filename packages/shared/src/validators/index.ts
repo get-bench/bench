@@ -1,5 +1,6 @@
 export {
   instanceGeneralSettingsSchema,
+  instanceSsoOidcSchema,
   patchInstanceGeneralSettingsSchema,
   type InstanceGeneralSettings,
   type PatchInstanceGeneralSettings,

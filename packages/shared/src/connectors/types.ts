@@ -57,4 +57,9 @@ export interface ConnectorDefinition {
   /** Optional vendor docs or admin consoles. */
   learnMoreUrl?: string;
   prerequisites?: string[];
+  /**
+   * Representative tool / API names for directory UX (not an enforced allow-list in V1).
+   * Shown as “capabilities” chips beside setup guidance.
+   */
+  sampleInvocableTools?: string[];
 }

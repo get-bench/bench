@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "../lib/utils";
 import { resolveAccountPersonaTitle } from "../lib/account-display";
 
-const PROFILE_SETTINGS_PATH = "/instance/settings/profile";
+const PROFILE_SETTINGS_PATH = "/bench/settings/profile";
 const DOCS_URL = "https://docs.bench.ing/";
 
 interface SidebarAccountMenuProps {

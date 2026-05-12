@@ -20,6 +20,7 @@ import { EmptyState } from "../components/EmptyState";
 import { MarkdownBody } from "../components/MarkdownBody";
 import { MarkdownEditor } from "../components/MarkdownEditor";
 import { PageSkeleton } from "../components/PageSkeleton";
+import { BenchMarkIcon } from "../components/BenchMarkIcon";
 import {
   Dialog,
   DialogContent,
@@ -46,7 +47,6 @@ import {
   Github,
   Link2,
   ExternalLink,
-  Paperclip,
   Pencil,
   Plus,
   RefreshCw,
@@ -73,6 +73,11 @@ function VercelMark(props: SVGProps<SVGSVGElement>) {
       <path d="M12 4 21 19H3z" />
     </svg>
   );
+}
+
+/** Same footprint as Lucide icons in skill source rows — Bench mark from `images/`. */
+function BenchSkillSourceIcon({ className }: { className?: string }) {
+  return <BenchMarkIcon className={className} alt="" />;
 }
 
 function stripFrontmatter(markdown: string) {
@@ -160,7 +165,7 @@ function sourceMeta(sourceBadge: CompanySkillSourceBadge, sourceLabel: string | 
     case "local":
       return { icon: Folder, label: sourceLabel ?? "Folder", managedLabel: "Folder managed" };
     case "bench":
-      return { icon: Paperclip, label: sourceLabel ?? "Bench", managedLabel: "Bench managed" };
+      return { icon: BenchSkillSourceIcon, label: sourceLabel ?? "Bench", managedLabel: "Bench managed" };
     default:
       return { icon: Boxes, label: sourceLabel ?? "Catalog", managedLabel: "Catalog managed" };
   }
@@ -1168,8 +1173,8 @@ export function CompanySkills() {
         </DialogContent>
       </Dialog>
 
-      <div className="grid min-h-[calc(100vh-12rem)] gap-0 xl:grid-cols-[19rem_minmax(0,1fr)]">
-        <aside className="border-r border-border">
+      <div className="grid min-h-[calc(100vh-12rem)] gap-0 xl:grid-cols-[19rem_minmax(0,1fr)] xl:items-stretch">
+        <aside className="border-b border-border xl:border-b-0 xl:border-r border-border min-h-0 max-h-[min(80vh,calc(100vh-10rem))] overflow-y-auto xl:max-h-[calc(100vh-12rem)]">
           <div className="border-b border-border px-4 py-3">
             <div className="flex items-center justify-between gap-2">
               <div>
@@ -1264,7 +1269,7 @@ export function CompanySkills() {
           )}
         </aside>
 
-        <div className="min-w-0 pl-6">
+        <div className="min-w-0 min-h-0 pl-6 xl:max-h-[calc(100vh-12rem)] xl:overflow-y-auto">
           <SkillPane
             loading={skillsQuery.isLoading || detailQuery.isLoading}
             detail={activeDetail}

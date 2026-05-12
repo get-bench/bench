@@ -423,6 +423,7 @@ const HERMES_AGENT: Agent = {
   urlKey: "hermesrouter",
   role: "engineer",
   title: "Lightweight Routing",
+  coworkerEmail: null,
   icon: "code",
   status: "idle",
   reportsTo: "agent-lead",

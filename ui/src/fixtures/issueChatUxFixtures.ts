@@ -23,6 +23,7 @@ function createAgent(
     urlKey,
     role: "engineer",
     title: null,
+    coworkerEmail: null,
     icon,
     status: "active",
     reportsTo: null,

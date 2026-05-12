@@ -288,6 +288,129 @@ describe("approval routes idempotent retries", () => {
     );
   });
 
+  it("blocks self-approval (requester cannot approve their own request)", async () => {
+    mockApprovalService.getById.mockResolvedValue({
+      id: "approval-self",
+      companyId: "company-1",
+      type: "hire_agent",
+      status: "pending",
+      payload: {},
+      requestedByAgentId: null,
+      requestedByUserId: "user-1", // same as authenticated actor
+    });
+
+    const res = await request(await createApp())
+      .post("/api/approvals/approval-self/approve")
+      .send({});
+
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: "self_approval_forbidden" });
+    expect(mockApprovalService.approve).not.toHaveBeenCalled();
+  });
+
+  it("blocks self-rejection (requester cannot reject their own request)", async () => {
+    mockApprovalService.getById.mockResolvedValue({
+      id: "approval-self-reject",
+      companyId: "company-1",
+      type: "hire_agent",
+      status: "pending",
+      payload: {},
+      requestedByAgentId: null,
+      requestedByUserId: "user-1",
+    });
+
+    const res = await request(await createApp())
+      .post("/api/approvals/approval-self-reject/reject")
+      .send({});
+
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: "self_approval_forbidden" });
+    expect(mockApprovalService.reject).not.toHaveBeenCalled();
+  });
+
+  it("blocks self-revision-request on the requester's own approval", async () => {
+    mockApprovalService.getById.mockResolvedValue({
+      id: "approval-self-revision",
+      companyId: "company-1",
+      type: "hire_agent",
+      status: "pending",
+      payload: {},
+      requestedByAgentId: null,
+      requestedByUserId: "user-1",
+    });
+
+    const res = await request(await createApp())
+      .post("/api/approvals/approval-self-revision/request-revision")
+      .send({ decisionNote: "rethink" });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toMatchObject({ error: "self_approval_forbidden" });
+    expect(mockApprovalService.requestRevision).not.toHaveBeenCalled();
+  });
+
+  it("lets a different reviewer approve a request filed by another user", async () => {
+    mockApprovalService.getById.mockResolvedValue({
+      id: "approval-other",
+      companyId: "company-1",
+      type: "hire_agent",
+      status: "pending",
+      payload: {},
+      requestedByAgentId: null,
+      requestedByUserId: "user-other", // different from the authenticated actor "user-1"
+    });
+    mockApprovalService.approve.mockResolvedValue({
+      approval: {
+        id: "approval-other",
+        companyId: "company-1",
+        type: "hire_agent",
+        status: "approved",
+        payload: {},
+        requestedByAgentId: null,
+      },
+      applied: true,
+    });
+
+    const res = await request(await createApp())
+      .post("/api/approvals/approval-other/approve")
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(mockApprovalService.approve).toHaveBeenCalledWith("approval-other", "user-1", undefined);
+  });
+
+  it("permits a local-board operator to approve requests they themselves filed (single-operator deployment)", async () => {
+    // In local self-hosted mode there may be no real userId — `decidedByUserId`
+    // resolves to "board" and there is no other identity to delegate to.
+    // We allow this case by intent so the operator isn't locked out.
+    mockApprovalService.getById.mockResolvedValue({
+      id: "approval-board",
+      companyId: "company-1",
+      type: "hire_agent",
+      status: "pending",
+      payload: {},
+      requestedByAgentId: null,
+      requestedByUserId: null,
+    });
+    mockApprovalService.approve.mockResolvedValue({
+      approval: {
+        id: "approval-board",
+        companyId: "company-1",
+        type: "hire_agent",
+        status: "approved",
+        payload: {},
+        requestedByAgentId: null,
+      },
+      applied: true,
+    });
+
+    const res = await request(await createApp({ userId: undefined }))
+      .post("/api/approvals/approval-board/approve")
+      .send({});
+
+    expect(res.status).toBe(200);
+    expect(mockApprovalService.approve).toHaveBeenCalledWith("approval-board", "board", undefined);
+  });
+
   it("lets agents create generic issue-linked board approval requests", async () => {
     mockApprovalService.create.mockResolvedValue({
       id: "approval-1",

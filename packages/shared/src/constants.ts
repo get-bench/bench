@@ -485,6 +485,25 @@ export type PrincipalType = (typeof PRINCIPAL_TYPES)[number];
 export const MEMBERSHIP_STATUSES = ["pending", "active", "suspended", "archived"] as const;
 export type MembershipStatus = (typeof MEMBERSHIP_STATUSES)[number];
 
+/**
+ * Workspace-scoped human role literals stored in `companyMemberships.membershipRole`.
+ *
+ * The DB table is named `companies` for historical reasons, but the *product*
+ * concept it represents is a **Workspace** (the Slack/Atlassian model — a customer
+ * org has many workspaces, e.g. "Cisco Engineering", "Cisco Sales"). All product
+ * copy must use "Workspace"; only schema-level identifiers keep the `company` name.
+ *
+ * Internal role literals must remain stable for backward-compat with existing
+ * data. Product-facing names live in `HUMAN_COMPANY_MEMBERSHIP_ROLE_LABELS` and
+ * `HUMAN_COMPANY_MEMBERSHIP_ROLE_DESCRIPTIONS` below.
+ *
+ * Mapping (DB literal → product name) — also documented in `doc/roles.md`:
+ *   owner    → "Workspace Owner"
+ *   admin    → "Workspace Admin"
+ *   operator → "People Manager"  (rename to `people_manager` is tracked in the RBAC plan)
+ *   viewer   → "Viewer"
+ *   member   → legacy alias of `operator`; do not use for new code
+ */
 export const COMPANY_MEMBERSHIP_ROLES = [
   "owner",
   "admin",
@@ -503,14 +522,31 @@ export const HUMAN_COMPANY_MEMBERSHIP_ROLES = [
 export type HumanCompanyMembershipRole = (typeof HUMAN_COMPANY_MEMBERSHIP_ROLES)[number];
 
 export const HUMAN_COMPANY_MEMBERSHIP_ROLE_LABELS: Record<HumanCompanyMembershipRole, string> = {
-  owner: "Owner",
-  admin: "Admin",
-  operator: "Operator",
+  owner: "Workspace Owner",
+  admin: "Workspace Admin",
+  operator: "People Manager",
   viewer: "Viewer",
+};
+
+/** One-line product descriptions used in the Members & roles picker. */
+export const HUMAN_COMPANY_MEMBERSHIP_ROLE_DESCRIPTIONS: Record<HumanCompanyMembershipRole, string> = {
+  owner:
+    "Founder / billing principal of the workspace. Approves hires, sets the workspace budget, can transfer or delete the workspace.",
+  admin:
+    "Day-to-day operator of the workspace. Hires and terminates coworkers, approves hire requests, wires connectors, manages members.",
+  operator:
+    "People leader for a slice of the workforce. Sees their own roster only and requests hires (approved by a Workspace Owner or Admin).",
+  viewer:
+    "Read-only stakeholder (legal, audit, finance). Can view dashboards and audit log; cannot mutate.",
 };
 
 export const INSTANCE_USER_ROLES = ["instance_admin"] as const;
 export type InstanceUserRole = (typeof INSTANCE_USER_ROLES)[number];
+
+/** Product-facing label for the single instance role (`/bench/settings`). */
+export const INSTANCE_USER_ROLE_LABELS: Record<InstanceUserRole, string> = {
+  instance_admin: "Bench Admin",
+};
 
 export const INVITE_TYPES = ["company_join", "bootstrap_ceo"] as const;
 export type InviteType = (typeof INVITE_TYPES)[number];

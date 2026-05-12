@@ -19,7 +19,7 @@ Before making changes, read in this order:
 
 `doc/SPEC.md` is long-horizon product context.
 `doc/SPEC-implementation.md` is the concrete V1 build contract.
-`doc/vision.md` is the Bench product vision and dashboard roadmap brief (May 2026); engineering sequencing lives in `doc/plans/2026-05-10-vision-dashboard-roadmap.md`. Related product references: `doc/persona.md` (human personas), `doc/coworkers.md` (coworker = agent alignment), `doc/connectors-directory.md` (connector catalog companion); canonical connector rows live in `@bench/shared` (`CONNECTOR_CATALOG`).
+`doc/vision.md` is the Bench product vision and dashboard roadmap brief (May 2026); engineering sequencing lives in `doc/plans/2026-05-10-vision-dashboard-roadmap.md`. Related product references: `doc/roles.md` (**canonical RBAC and role taxonomy — read before changing any settings or hire flow**), `doc/persona.md` (narrative human personas), `doc/coworkers.md` (coworker = agent alignment), `doc/connectors-directory.md` (connector catalog companion); canonical connector rows live in `@bench/shared` (`CONNECTOR_CATALOG`).
 
 ## 3. Repo Map
 

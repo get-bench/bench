@@ -19,6 +19,8 @@ export const agents = pgTable(
     name: text("name").notNull(),
     role: text("role").notNull().default("general"),
     title: text("title"),
+    /** Suggested org-scoped address for IT invites (e.g. alex.bench@company.com); not auto-provisioned. */
+    coworkerEmail: text("coworker_email"),
     icon: text("icon"),
     status: text("status").notNull().default("idle"),
     reportsTo: uuid("reports_to").references((): AnyPgColumn => agents.id),

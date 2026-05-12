@@ -63,22 +63,17 @@ function KanbanColumn({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: status });
 
-  const isEmpty = issues.length === 0;
-
+  /** Fixed-width columns + horizontal scroll on the row — equal flex-shrink made every column ~14% of the viewport and unreadable. */
   return (
-    <div className={`flex flex-col shrink-0 transition-[width,min-width] ${isEmpty && !isOver ? "min-w-[48px] w-[48px]" : "min-w-[260px] w-[260px]"}`}>
-      <div className={`flex items-center gap-2 px-2 py-2 mb-1 ${isEmpty && !isOver ? "justify-center" : ""}`}>
-        <StatusIcon status={status} />
-        {(!isEmpty || isOver) && (
-          <>
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {statusLabel(status)}
-            </span>
-            <span className="text-xs text-muted-foreground/60 ml-auto tabular-nums">
-              {issues.length}
-            </span>
-          </>
-        )}
+    <div className="flex w-[260px] min-w-[260px] shrink-0 flex-col">
+      <div className="mb-1 flex min-w-0 items-center gap-1.5 px-2 py-2">
+        <StatusIcon status={status} className="shrink-0" />
+        <span className="min-w-0 truncate text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {statusLabel(status)}
+        </span>
+        <span className="ml-auto shrink-0 tabular-nums text-xs text-muted-foreground/70">
+          {issues.length}
+        </span>
       </div>
       <div
         ref={setNodeRef}
@@ -260,7 +255,7 @@ export function KanbanBoard({
       onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
-      <div className="flex gap-3 overflow-x-auto pb-4 -mx-2 px-2">
+      <div className="-mx-2 flex w-full min-w-0 gap-3 overflow-x-auto overflow-y-visible pb-4 px-2 [scrollbar-gutter:stable]">
         {boardStatuses.map((status) => (
           <KanbanColumn
             key={status}

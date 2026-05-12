@@ -7,7 +7,7 @@ import { createAssetImageMetadataSchema } from "@bench/shared";
 import type { StorageService } from "../storage/types.js";
 import { assetService, logActivity } from "../services/index.js";
 import { isAllowedContentType, MAX_ATTACHMENT_BYTES } from "../attachment-types.js";
-import { assertCompanyAccess, getActorInfo } from "./authz.js";
+import { assertCompanyAccess, assertWorkspaceCapability, getActorInfo } from "./authz.js";
 const SVG_CONTENT_TYPE = "image/svg+xml";
 const ALLOWED_COMPANY_LOGO_CONTENT_TYPES = new Set([
   "image/png",
@@ -212,7 +212,8 @@ export function assetRoutes(db: Db, storage: StorageService) {
 
   router.post("/companies/:companyId/logo", async (req, res) => {
     const companyId = req.params.companyId as string;
-    assertCompanyAccess(req, companyId);
+    // Workspace logo upload mutates branding; per roles.md §5 only Owner+Admin.
+    assertWorkspaceCapability(req, companyId, "workspace:branding:edit");
 
     try {
       await runSingleFileUpload(companyLogoUpload, req, res);

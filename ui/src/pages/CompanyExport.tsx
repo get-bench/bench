@@ -445,7 +445,7 @@ function generateReadmeFromSelection(
   lines.push("");
 
   const counts: Array<[string, number]> = [];
-  if (agents.length > 0) counts.push(["Agents", agents.length]);
+  if (agents.length > 0) counts.push(["Coworkers", agents.length]);
   if (projects.length > 0) counts.push(["Projects", projects.length]);
   if (skills.length > 0) counts.push(["Skills", skills.length]);
   if (tasks.length > 0) counts.push(["Tasks", tasks.length]);
@@ -460,9 +460,9 @@ function generateReadmeFromSelection(
   }
 
   if (agents.length > 0) {
-    lines.push("### Agents");
+    lines.push("### Coworkers");
     lines.push("");
-    lines.push("| Agent | Role | Reports To |");
+    lines.push("| Coworker | Role | Reports To |");
     lines.push("|-------|------|------------|");
     for (const agent of agents) {
       const roleLabel = exportRoleLabel(agent.role);

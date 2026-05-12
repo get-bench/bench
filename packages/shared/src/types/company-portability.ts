@@ -123,6 +123,8 @@ export interface CompanyPortabilityAgentManifestEntry {
   role: string;
   title: string | null;
   icon: string | null;
+  /** Org-style work email for ACL / calendar invites (Bench does not provision mailboxes). */
+  coworkerEmail: string | null;
   capabilities: string | null;
   reportsToSlug: string | null;
   adapterType: string;

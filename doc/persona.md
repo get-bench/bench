@@ -1,8 +1,8 @@
 # Bench — User personas
 
-This document describes **human** personas who interact with Bench (the control plane, approvals, and governance). AI hires are called **coworkers** in product copy but use the same **agent** domain as PaperClip — see [`coworkers.md`](./coworkers.md).
+This document describes **human** personas who interact with Bench (the control plane, approvals, and governance) — narrative stories used to guide UX, docs, and product copy. AI hires are called **coworkers** in product copy but use the same **agent** domain as PaperClip — see [`coworkers.md`](./coworkers.md).
 
-Personas are **not** rigid RBAC names in code today; they guide UX, docs, and future permission matrices. Align copy and dashboard IA with these stories.
+> **For the formal RBAC contract** (which role can do what, settings IA, mapping to DB literals), see [`doc/roles.md`](./roles.md). Personas below are the stories; roles.md is the source of truth for permissions. When the two disagree, roles.md wins.
 
 ### Dashboard view selector (UI prototype)
 
@@ -19,7 +19,7 @@ The board top bar includes **View as → Admin | Manager** (stored in `localStor
 
 1. **Hire:** Open hire dialog or **New coworker** → advanced form → set optional **people manager email** (`metadata.benchManagerEmail`, normalized) so the hire appears in the right manager’s scoped view.
 2. **Re-assign:** On a coworker’s **Configuration** tab, edit **People manager** and save (same metadata key).
-3. **Manager request:** Managers use **Request coworker hire** — a dialog to pick a **standard Bench role** (with capability blurbs), or describe a **custom role**. Both paths generate an **issue ticket** with id `HIRE-…` in the title/body, assigned to the company **Admin coworker** for review. Admin fulfills by creating the hire and setting **benchManagerEmail**.
+3. **Manager request:** Managers use **Request coworker hire** — a dialog to pick a **standard Bench role** (with capability blurbs), or describe a **custom role**. Today both paths generate an **issue ticket** with id `HIRE-…` in the title/body, routed to the workspace's human **Workspace Owner / Workspace Admin** for review. The Owner/Admin fulfills by approving onboarding and pinning **benchManagerEmail** to the requester so the new coworker lands in their roster. The hire flow is being moved to a typed `hire_request` entity (see [`doc/plans/2026-05-11-rbac-and-hire-requests.md`](./plans/2026-05-11-rbac-and-hire-requests.md)).
 
 #### Manager lens (people leader)
 

@@ -179,4 +179,8 @@ export const queryKeys = {
   adapters: {
     all: ["adapters"] as const,
   },
+  connectors: {
+    slackChannels: (accountId: string, cursor: string | null, query: string) =>
+      ["connectors", "slack-channels", accountId, cursor ?? "__head__", query] as const,
+  },
 };

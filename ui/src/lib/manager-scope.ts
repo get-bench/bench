@@ -20,6 +20,28 @@ export function filterAgentsForManagerEmail(agents: Agent[], managerEmail: strin
   return agents.filter((a) => getBenchManagerEmailFromMetadata(a.metadata) === norm);
 }
 
+/** Coworkers in the workspace that have no `metadata.benchManagerEmail` set. Excludes terminated. Used by the Manager-view recovery flow so a manager can self-claim coworkers that an admin forgot to assign during hire. */
+export function findUnassignedCoworkers(agents: Agent[]): Agent[] {
+  return agents.filter(
+    (a) =>
+      a.status !== "terminated"
+      && getBenchManagerEmailFromMetadata(a.metadata) === null,
+  );
+}
+
+/** Build a metadata patch that sets `benchManagerEmail` while preserving every other key the agent already has. The PATCH /agents/:id endpoint replaces metadata wholesale, so callers MUST merge from the live row instead of sending a bare `{ benchManagerEmail }`. */
+export function buildClaimManagerMetadataPatch(
+  existingMetadata: Record<string, unknown> | null,
+  managerEmail: string,
+): Record<string, unknown> {
+  const base: Record<string, unknown> =
+    existingMetadata && typeof existingMetadata === "object" && !Array.isArray(existingMetadata)
+      ? { ...existingMetadata }
+      : {};
+  base[BENCH_MANAGER_EMAIL_METADATA_KEY] = normalizePersonaEmail(managerEmail);
+  return base;
+}
+
 export function issueTouchesScopedAgents(issue: Issue, scopedAgentIds: Set<string>): boolean {
   if (issue.assigneeAgentId && scopedAgentIds.has(issue.assigneeAgentId)) return true;
   if (issue.createdByAgentId && scopedAgentIds.has(issue.createdByAgentId)) return true;
@@ -55,7 +77,8 @@ export function scopedAgentDashboardCounts(agents: Agent[]): {
   let error = 0;
   for (const a of agents) {
     if (a.status === "terminated") continue;
-    if (a.status === "idle" || a.status === "active") active++;
+    // Include pending_approval so manager dashboard "Your coworkers" matches hires awaiting approval.
+    if (a.status === "idle" || a.status === "active" || a.status === "pending_approval") active++;
     else if (a.status === "running") running++;
     else if (a.status === "paused") paused++;
     else if (a.status === "error") error++;

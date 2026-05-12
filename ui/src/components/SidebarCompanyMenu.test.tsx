@@ -104,7 +104,7 @@ describe("SidebarCompanyMenu", () => {
     await flushReact();
 
     expect(document.body.textContent).toContain("Invite people to Acme Labs");
-    expect(document.body.textContent).toContain("Company settings");
+    expect(document.body.textContent).toContain("Workspace settings");
     expect(document.body.textContent).toContain("Sign out");
 
     const signOutButton = Array.from(document.body.querySelectorAll('[data-slot="dropdown-menu-item"]'))

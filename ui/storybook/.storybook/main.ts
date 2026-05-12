@@ -23,6 +23,7 @@ const config: StorybookConfig = {
       resolve: {
         alias: {
           "@": path.resolve(storybookConfigDir, "../../src"),
+          "@bench/images": path.resolve(storybookConfigDir, "../../../images"),
           lexical: path.resolve(storybookConfigDir, "../../node_modules/lexical/Lexical.mjs"),
         },
       },

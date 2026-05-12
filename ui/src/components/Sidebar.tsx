@@ -154,7 +154,7 @@ export function Sidebar() {
 
         <SidebarAgents />
 
-        <SidebarSection label="Company">
+        <SidebarSection label="Workspace">
           {!isManagerView ? (
             <>
               <SidebarNavItem to="/org" label="Org" icon={Network} />
@@ -164,7 +164,7 @@ export function Sidebar() {
           <SidebarNavItem to="/connectors" label="Connectors" icon={Cable} />
           <SidebarNavItem to="/costs" label="Costs" icon={DollarSign} />
           <SidebarNavItem to="/activity" label="Activity" icon={History} />
-          <SidebarNavItem to="/company/settings" label="Settings" icon={Settings} />
+          <SidebarNavItem to="/workspace/settings" label="Workspace settings" icon={Settings} />
         </SidebarSection>
 
         <PluginSlotOutlet

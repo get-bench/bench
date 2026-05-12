@@ -33,6 +33,7 @@ const CONFIG_REVISION_FIELDS = [
   "name",
   "role",
   "title",
+  "coworkerEmail",
   "reportsTo",
   "capabilities",
   "adapterType",
@@ -94,6 +95,7 @@ function buildConfigSnapshot(
     name: row.name,
     role: row.role,
     title: row.title,
+    coworkerEmail: row.coworkerEmail,
     reportsTo: row.reportsTo,
     capabilities: row.capabilities,
     adapterType: row.adapterType,
@@ -162,6 +164,10 @@ function configPatchFromSnapshot(snapshot: unknown): Partial<typeof agents.$infe
     name: snapshot.name,
     role: snapshot.role,
     title: typeof snapshot.title === "string" || snapshot.title === null ? snapshot.title : null,
+    coworkerEmail:
+      typeof snapshot.coworkerEmail === "string" || snapshot.coworkerEmail === null
+        ? snapshot.coworkerEmail
+        : null,
     reportsTo:
       typeof snapshot.reportsTo === "string" || snapshot.reportsTo === null ? snapshot.reportsTo : null,
     capabilities:

@@ -72,7 +72,7 @@ export function CompanyAccess() {
   useEffect(() => {
     setBreadcrumbs([
       { label: selectedCompany?.name ?? "Company", href: "/dashboard" },
-      { label: "Settings", href: "/company/settings" },
+      { label: "Workspace settings", href: "/workspace/settings" },
       { label: "Access" },
     ]);
   }, [selectedCompany?.name, setBreadcrumbs]);
@@ -566,7 +566,7 @@ export function CompanyAccess() {
                       </optgroup>
                     ) : null}
                     {activeReassignmentAgents.length > 0 ? (
-                      <optgroup label="Agents">
+                      <optgroup label="Coworkers">
                         {activeReassignmentAgents.map((agent) => (
                           <option key={agent.id} value={`agent:${agent.id}`}>
                             {agent.name} ({agent.role})

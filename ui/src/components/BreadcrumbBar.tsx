@@ -1,5 +1,5 @@
-import { Link } from "@/lib/router";
-import { Menu } from "lucide-react";
+import { Link, useLocation } from "@/lib/router";
+import { Menu, X } from "lucide-react";
 import { useBreadcrumbs } from "../context/BreadcrumbContext";
 import { useSidebar } from "../context/SidebarContext";
 import { useCompany } from "../context/CompanyContext";
@@ -18,6 +18,27 @@ import { PluginLauncherOutlet, usePluginLaunchers } from "@/plugins/launchers";
 
 type GlobalToolbarContext = { companyId: string | null; companyPrefix: string | null };
 
+/**
+ * "Exit settings" affordance in the top-right of the breadcrumb bar.
+ * Settings views previously had no top-bar way out — only a chevron tucked into
+ * the workspace-settings sidebar (and nothing at all in Bench settings). This
+ * button takes the operator straight back to their dashboard.
+ */
+function ExitSettingsButton({ pathname }: { pathname: string }) {
+  const isInstanceSettings =
+    pathname.startsWith("/bench/settings") || pathname.startsWith("/instance/settings");
+  const isCompanySettings =
+    pathname.includes("/workspace/settings") || pathname.includes("/company/settings");
+  if (!isInstanceSettings && !isCompanySettings) return null;
+  return (
+    <Button asChild variant="ghost" size="icon-sm" aria-label="Exit settings" title="Exit settings">
+      <Link to="/dashboard">
+        <X className="h-4 w-4" />
+      </Link>
+    </Button>
+  );
+}
+
 function GlobalToolbarPlugins({ context }: { context: GlobalToolbarContext }) {
   const { slots } = usePluginSlots({ slotTypes: ["globalToolbarButton"], companyId: context.companyId });
   const { launchers } = usePluginLaunchers({ placementZones: ["globalToolbarButton"], companyId: context.companyId, enabled: !!context.companyId });
@@ -34,6 +55,7 @@ export function BreadcrumbBar() {
   const { breadcrumbs, mobileToolbar } = useBreadcrumbs();
   const { toggleSidebar, isMobile } = useSidebar();
   const { selectedCompanyId, selectedCompany } = useCompany();
+  const location = useLocation();
 
   const globalToolbarSlotContext = useMemo(
     () => ({
@@ -44,11 +66,13 @@ export function BreadcrumbBar() {
   );
 
   const globalToolbarSlots = <GlobalToolbarPlugins context={globalToolbarSlotContext} />;
+  const exitSettings = <ExitSettingsButton pathname={location.pathname} />;
 
   if (isMobile && mobileToolbar) {
     return (
       <div className="border-b border-border px-2 h-12 shrink-0 flex items-center gap-2">
         <div className="min-w-0 flex-1">{mobileToolbar}</div>
+        {exitSettings}
       </div>
     );
   }
@@ -57,6 +81,7 @@ export function BreadcrumbBar() {
     return (
       <div className="border-b border-border px-4 md:px-6 h-12 shrink-0 flex items-center justify-end gap-2">
         {globalToolbarSlots}
+        {exitSettings}
       </div>
     );
   }
@@ -84,6 +109,7 @@ export function BreadcrumbBar() {
           </h1>
         </div>
         {globalToolbarSlots}
+        {exitSettings}
       </div>
     );
   }
@@ -116,6 +142,7 @@ export function BreadcrumbBar() {
         </Breadcrumb>
       </div>
       {globalToolbarSlots}
+      {exitSettings}
     </div>
   );
 }

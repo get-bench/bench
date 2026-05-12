@@ -10,30 +10,37 @@ import { useToast } from "@/context/ToastContext";
 import { Link } from "@/lib/router";
 import { queryKeys } from "@/lib/queryKeys";
 
+/**
+ * Order matters: shown low → high privilege so people pick the least-powerful role
+ * that fits the invitee. Labels and descriptions follow `doc/roles.md`.
+ */
 const inviteRoleOptions = [
   {
     value: "viewer",
     label: "Viewer",
-    description: "Can view company work and follow along without operational permissions.",
+    description: "Read-only stakeholder (legal, audit, finance). Can view dashboards and audit log.",
     gets: "No built-in grants.",
   },
   {
     value: "operator",
-    label: "Operator",
-    description: "Recommended for people who need to help run work without managing access.",
-    gets: "Can assign tasks.",
+    label: "People Manager",
+    description:
+      "People leader for a slice of the workforce. Sees their own roster only and can request hires.",
+    gets: "Can file and assign tasks within their roster.",
   },
   {
     value: "admin",
-    label: "Admin",
-    description: "Recommended for operators who need to invite people, create agents, and approve joins.",
-    gets: "Can create agents, invite users, assign tasks, and approve join requests.",
+    label: "Workspace Admin",
+    description:
+      "Day-to-day operator of the workspace. Hires and terminates coworkers, approves hire requests, wires connectors, manages members.",
+    gets: "Can create coworkers, invite users, assign tasks, and approve join and hire requests.",
   },
   {
     value: "owner",
-    label: "Owner",
-    description: "Full company access, including membership and permission management.",
-    gets: "Everything in Admin, plus managing members and permission grants.",
+    label: "Workspace Owner",
+    description:
+      "Founder / billing principal of the workspace. Approves hires, sets the workspace budget, can transfer or delete the workspace.",
+    gets: "Everything in Workspace Admin, plus setting budget caps and managing membership grants.",
   },
 ] as const;
 
@@ -82,7 +89,7 @@ export function CompanyInvites() {
   useEffect(() => {
     setBreadcrumbs([
       { label: selectedCompany?.name ?? "Company", href: "/dashboard" },
-      { label: "Settings", href: "/company/settings" },
+      { label: "Workspace settings", href: "/workspace/settings" },
       { label: "Invites" },
     ]);
   }, [selectedCompany?.name, setBreadcrumbs]);

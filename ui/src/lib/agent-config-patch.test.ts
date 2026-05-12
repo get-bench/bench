@@ -11,6 +11,7 @@ function makeAgent(): Agent {
     name: "Agent",
     role: "engineer",
     title: "Engineer",
+    coworkerEmail: null,
     icon: null,
     status: "active",
     reportsTo: null,

@@ -392,6 +392,15 @@ export function NewIssueDialog() {
   const draftTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const executionWorkspaceDefaultProjectId = useRef<string | null>(null);
   const initializationKeyRef = useRef<string | null>(null);
+  /**
+   * When the dialog is opened with prefilled title/description from a launcher
+   * (e.g. "Hire prep: Designer", "Request: hire a new coworker"), we record the
+   * exact prefill here. While title+description still match the prefill verbatim,
+   * `queueDraftSave` skips persistence — otherwise the launcher copy becomes a
+   * sticky draft that hijacks every subsequent New Issue open. Once the user
+   * edits past the prefill, drafting resumes normally.
+   */
+  const launcherPrefillRef = useRef<{ title: string; description: string } | null>(null);
 
   const effectiveCompanyId = dialogCompanyId ?? selectedCompanyId;
   const dialogCompany = companies.find((c) => c.id === effectiveCompanyId) ?? selectedCompany;
@@ -576,6 +585,17 @@ export function NewIssueDialog() {
     (draft: IssueDraft) => {
       if (draftTimer.current) clearTimeout(draftTimer.current);
       draftTimer.current = setTimeout(() => {
+        // Skip persistence while the dialog still shows an unedited launcher prefill —
+        // otherwise the prefill becomes a sticky draft that hijacks the next blank open.
+        const prefill = launcherPrefillRef.current;
+        if (
+          prefill
+          && draft.title === prefill.title
+          && draft.description === prefill.description
+        ) {
+          clearDraft();
+          return;
+        }
         if (draft.title.trim()) saveDraft(draft);
       }, DEBOUNCE_MS);
     },
@@ -671,6 +691,7 @@ export function NewIssueDialog() {
   useEffect(() => {
     if (!newIssueOpen) {
       initializationKeyRef.current = null;
+      launcherPrefillRef.current = null;
       return;
     }
     const initializationKey = `${selectedCompanyId ?? ""}:${JSON.stringify(newIssueDefaults)}`;
@@ -689,7 +710,12 @@ export function NewIssueDialog() {
       const defaultExecutionWorkspaceMode = newIssueDefaults.executionWorkspaceId
         ? "reuse_existing"
         : (newIssueDefaults.executionWorkspaceMode ?? defaultExecutionWorkspaceModeForProject(defaultProject));
-      setIssueText(newIssueDefaults.title ?? "", newIssueDefaults.description ?? "");
+      const subTitle = newIssueDefaults.title ?? "";
+      const subDescription = newIssueDefaults.description ?? "";
+      launcherPrefillRef.current = subTitle || subDescription
+        ? { title: subTitle, description: subDescription }
+        : null;
+      setIssueText(subTitle, subDescription);
       setStatus(newIssueDefaults.status ?? "todo");
       setPriority(newIssueDefaults.priority ?? "");
       setProjectId(defaultProjectId);
@@ -705,7 +731,14 @@ export function NewIssueDialog() {
         ? defaultProjectId || null
         : null;
     } else if (newIssueDefaults.title) {
-      setIssueText(newIssueDefaults.title, newIssueDefaults.description ?? "");
+      const launcherTitle = newIssueDefaults.title;
+      const launcherDescription = newIssueDefaults.description ?? "";
+      // Mark this as a launcher prefill so it doesn't get persisted as a user draft.
+      // Also clear any pre-existing draft up front: opening with a launcher prefill
+      // should always show the prefill, never an older sticky draft.
+      launcherPrefillRef.current = { title: launcherTitle, description: launcherDescription };
+      clearDraft();
+      setIssueText(launcherTitle, launcherDescription);
       setStatus(newIssueDefaults.status ?? "todo");
       setPriority(newIssueDefaults.priority ?? "");
       const defaultProjectId = newIssueDefaults.projectId ?? "";
@@ -724,6 +757,7 @@ export function NewIssueDialog() {
       setSelectedExecutionWorkspaceId("");
       executionWorkspaceDefaultProjectId.current = defaultProject ? defaultProjectId || null : null;
     } else if (draft && draft.title.trim()) {
+      launcherPrefillRef.current = null;
       const restoredProjectId = newIssueDefaults.projectId ?? draft.projectId;
       const restoredProject = orderedProjects.find((project) => project.id === restoredProjectId);
       setIssueText(draft.title, draft.description);
@@ -753,6 +787,7 @@ export function NewIssueDialog() {
         ? restoredProjectId || null
         : null;
     } else {
+      launcherPrefillRef.current = null;
       const defaultProjectId = newIssueDefaults.projectId ?? "";
       const defaultProject = orderedProjects.find((project) => project.id === defaultProjectId);
       setIssueText("", "");

@@ -547,11 +547,14 @@ function treeBounds(ln: LayoutNode): { minX: number; minY: number; maxX: number;
   return { minX, minY, maxX, maxY };
 }
 
-// Bench logo: scaled icon (~16px) + wordmark (13px), vertically centered
+// Bench mark from `images/svg/bench_logo_on_*_bg.svg` (cropped viewBox) + wordmark
+const BENCH_LOGO_MARK_D =
+  "M97.9659 282.548C96.3871 282.548 95.5977 281.76 95.5977 280.183V180.818C95.5977 179.241 96.3871 178.452 97.9659 178.452L342.211 178.452C343.664 178.452 344.927 178.988 346 180.06L364.946 198.987C365.957 199.996 366.462 201.258 366.462 202.772V280.182C366.462 281.759 365.672 282.548 364.093 282.548H334.159C332.581 282.548 331.791 281.759 331.791 280.182V213.183C331.791 213.183 136.899 213.183 134.247 213.183H130.268V280.183C130.268 281.76 129.479 282.548 127.9 282.548H97.9659Z";
+
 const BENCH_LOGO_SVG = `<g>
-  <g transform="scale(0.72)" transform-origin="0 0">
-    <path stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none" d="m18 4-8.414 8.586a2 2 0 0 0 2.829 2.829l8.414-8.586a4 4 0 1 0-5.657-5.657l-8.379 8.551a6 6 0 1 0 8.485 8.485l8.379-8.551"/>
-  </g>
+  <svg x="0" y="-1" width="18" height="18" viewBox="95 178 272 105" preserveAspectRatio="xMidYMid meet">
+    <path fill="currentColor" d="${BENCH_LOGO_MARK_D}"/>
+  </svg>
   <text x="22" y="11.5" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="600" fill="currentColor">Bench</text>
 </g>`;
 

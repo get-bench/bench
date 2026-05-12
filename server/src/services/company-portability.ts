@@ -2505,6 +2505,7 @@ function buildManifestFromPackageFiles(
       role: asString(extension.role) ?? asString(frontmatter.role) ?? "agent",
       title,
       icon: asString(extension.icon),
+      coworkerEmail: asString(extension.coworkerEmail) || null,
       capabilities: asString(extension.capabilities),
       reportsToSlug: asString(frontmatter.reportsTo) ?? asString(extension.reportsTo),
       adapterType: asString(extensionAdapter?.type) ?? "process",
@@ -3321,6 +3322,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
         const extension = stripEmptyValues({
           role: agent.role !== "agent" ? agent.role : undefined,
           icon: agent.icon ?? null,
+          coworkerEmail: agent.coworkerEmail ?? null,
           capabilities: agent.capabilities ?? null,
           adapter: {
             type: agent.adapterType,
@@ -4200,6 +4202,7 @@ export function companyPortabilityService(db: Db, storage?: StorageService) {
           role: normalizeCoworkerRole(String(manifestAgent.role)),
           title: manifestAgent.title,
           icon: manifestAgent.icon,
+          coworkerEmail: manifestAgent.coworkerEmail,
           capabilities: manifestAgent.capabilities,
           reportsTo: null,
           adapterType: normalizedAdapter.adapterType,

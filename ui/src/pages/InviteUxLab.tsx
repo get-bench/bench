@@ -23,26 +23,29 @@ const inviteRoleOptions = [
   {
     value: "viewer",
     label: "Viewer",
-    description: "Can view company work and follow along without operational permissions.",
+    description: "Read-only stakeholder (legal, audit, finance). Can view dashboards and audit log.",
     gets: "No built-in grants.",
   },
   {
     value: "operator",
-    label: "Operator",
-    description: "Recommended for people who need to help run work without managing access.",
-    gets: "Can assign tasks.",
+    label: "People Manager",
+    description:
+      "People leader for a slice of the workforce. Sees their own roster only and can request hires.",
+    gets: "Can file and assign tasks within their roster.",
   },
   {
     value: "admin",
-    label: "Admin",
-    description: "Recommended for operators who need to invite people, create agents, and approve joins.",
-    gets: "Can create agents, invite users, assign tasks, and approve join requests.",
+    label: "Workspace Admin",
+    description:
+      "Day-to-day operator of the workspace. Hires and terminates coworkers, approves hire requests, wires connectors, manages members.",
+    gets: "Can create coworkers, invite users, assign tasks, and approve join and hire requests.",
   },
   {
     value: "owner",
-    label: "Owner",
-    description: "Full company access, including membership and permission management.",
-    gets: "Everything in Admin, plus managing members and permission grants.",
+    label: "Workspace Owner",
+    description:
+      "Founder / billing principal of the workspace. Approves hires, sets the workspace budget, can transfer or delete the workspace.",
+    gets: "Everything in Workspace Admin, plus setting budget caps and managing membership grants.",
   },
 ] as const;
 
@@ -423,8 +426,8 @@ function InviteResultPreview({
           <>
             <div className="border border-zinc-800 p-3">
               <p className="mb-1 text-xs text-zinc-500">Approval page</p>
-              <a className="text-sm text-zinc-200 underline underline-offset-2" href="/company/settings/access">
-                Company Settings → Access
+              <a className="text-sm text-zinc-200 underline underline-offset-2" href="/workspace/settings/access">
+                Workspace settings → Access
               </a>
             </div>
             <p className="text-xs text-zinc-500">
@@ -813,7 +816,7 @@ export function InviteUxLab() {
                 title="Join Acme Robotics"
                 description="Create your Bench account first. If you already have one, switch to sign in and continue the invite with the same email."
                 inviteMessage="Welcome aboard."
-                requestedAccess="Operator"
+                requestedAccess="People Manager"
               />
             }
             right={<InlineAuthPreview mode="sign_up" />}
@@ -825,7 +828,7 @@ export function InviteUxLab() {
                 title="Join Acme Robotics"
                 description="Create your Bench account first. If you already have one, switch to sign in and continue the invite with the same email."
                 inviteMessage="Welcome aboard."
-                requestedAccess="Operator"
+                requestedAccess="People Manager"
               />
             }
             right={
@@ -845,7 +848,7 @@ export function InviteUxLab() {
                 title="Join Acme Robotics"
                 description="Your account is ready. Review the invite details, then accept it to continue."
                 inviteMessage="Welcome aboard."
-                requestedAccess="Operator"
+                requestedAccess="People Manager"
                 signedInLabel="Jane Example"
               />
             }
@@ -868,7 +871,7 @@ export function InviteUxLab() {
               <InviteSummaryPanel
                 title="Join Acme Robotics"
                 description="Your account is ready. Review the invite details, then accept it to continue."
-                requestedAccess="Operator"
+                requestedAccess="People Manager"
                 signedInLabel="Jane Example"
               />
             }
@@ -897,7 +900,7 @@ export function InviteUxLab() {
           />
           <InviteResultPreview
             title="Request to join Acme Robotics"
-            description="Ask them to visit Company Settings → Access to approve your request."
+            description="Ask them to visit Workspace settings → Access to approve your request."
           />
         </div>
       </LabSection>
@@ -915,7 +918,7 @@ export function InviteUxLab() {
       </LabSection>
 
       <LabSection
-        eyebrow="Company settings"
+        eyebrow="Workspace settings"
         title="Company invite management"
         description="This section captures the board-side invite creation flow, copied-link state, audit table, and the edge states that are otherwise tedious to stage."
         accentClassName="bg-[linear-gradient(180deg,rgba(244,114,182,0.06),transparent_28%),var(--background)]"

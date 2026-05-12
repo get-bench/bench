@@ -26,7 +26,11 @@ import {
 import { probeEnvironment } from "../services/environment-probe.js";
 import { secretService } from "../services/secrets.js";
 import { listReadyPluginEnvironmentDrivers } from "../services/plugin-environment-driver.js";
-import { assertCompanyAccess, getActorInfo } from "./authz.js";
+import {
+  assertCompanyAccess,
+  assertWorkspaceCapability,
+  getActorInfo,
+} from "./authz.js";
 import type { PluginWorkerManager } from "../services/plugin-worker-manager.js";
 import { environmentService } from "../services/environments.js";
 import { executionWorkspaceService } from "../services/execution-workspaces.js";
@@ -56,16 +60,15 @@ export function environmentRoutes(
   }
 
   async function assertCanMutateEnvironments(req: Request, companyId: string) {
-    assertCompanyAccess(req, companyId);
-
     if (req.actor.type === "board") {
-      if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) return;
-      const allowed = await access.canUser(companyId, req.actor.userId, "environments:manage");
-      if (!allowed) {
-        throw forbidden("Missing permission: environments:manage");
-      }
+      // Per roles.md §5: workspace environments are Owner/Admin. The legacy
+      // `environments:manage` permission grant is no longer required for
+      // board users — the role itself is the gate.
+      assertWorkspaceCapability(req, companyId, "workspace:environments:manage");
       return;
     }
+
+    assertCompanyAccess(req, companyId);
 
     if (!req.actor.agentId) {
       throw forbidden("Agent authentication required");
@@ -89,7 +92,13 @@ export function environmentRoutes(
 
     if (req.actor.type === "board") {
       if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) return true;
-      return access.canUser(companyId, req.actor.userId, "environments:manage");
+      // Per roles.md §5: environment *configuration* (which holds connection
+      // strings, ssh keys, etc.) is sensitive and only readable by Owner/Admin
+      // — the same gate as mutation. Operator/Viewer see redacted views.
+      const memberships = Array.isArray(req.actor.memberships) ? req.actor.memberships : [];
+      const membership = memberships.find((row) => row.companyId === companyId);
+      if (!membership || membership.status !== "active") return false;
+      return membership.membershipRole === "owner" || membership.membershipRole === "admin";
     }
 
     if (!req.actor.agentId) return false;

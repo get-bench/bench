@@ -170,7 +170,7 @@ export function CompanyEnvironments() {
   useEffect(() => {
     setBreadcrumbs([
       { label: selectedCompany?.name ?? "Company", href: "/dashboard" },
-      { label: "Settings", href: "/company/settings" },
+      { label: "Workspace settings", href: "/workspace/settings" },
       { label: "Environments" },
     ]);
   }, [selectedCompany?.name, setBreadcrumbs]);

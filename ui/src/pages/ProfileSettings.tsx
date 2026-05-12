@@ -35,7 +35,7 @@ export function ProfileSettings() {
 
   useEffect(() => {
     setBreadcrumbs([
-      { label: "Instance Settings" },
+      { label: "Bench settings", href: "/bench/settings/general" },
       { label: "Profile" },
     ]);
   }, [setBreadcrumbs]);

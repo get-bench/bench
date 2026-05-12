@@ -1,4 +1,5 @@
 import type { Agent } from "@bench/shared";
+import { BENCH_MANAGER_EMAIL_METADATA_KEY, normalizePersonaEmail } from "./manager-scope";
 
 export interface AgentModelProfileOverlay {
   enabled?: boolean;
@@ -17,6 +18,8 @@ export interface AgentConfigOverlay {
   heartbeat: Record<string, unknown>;
   runtime: Record<string, unknown>;
   modelProfiles?: { cheap?: AgentModelProfileOverlay };
+  /** Shallow metadata keys to merge (empty string removes key). */
+  metadata?: Record<string, unknown>;
 }
 
 const ADAPTER_AGNOSTIC_KEYS = [
@@ -39,7 +42,25 @@ export function buildAgentUpdatePatch(agent: Agent, overlay: AgentConfigOverlay)
   const patch: Record<string, unknown> = {};
 
   if (Object.keys(overlay.identity).length > 0) {
-    Object.assign(patch, overlay.identity);
+    const idPatch = { ...overlay.identity };
+    if ("coworkerEmail" in idPatch && (idPatch.coworkerEmail === "" || idPatch.coworkerEmail === undefined)) {
+      idPatch.coworkerEmail = null;
+    }
+    Object.assign(patch, idPatch);
+  }
+
+  if (overlay.metadata && Object.keys(overlay.metadata).length > 0) {
+    const base = { ...(agent.metadata ?? {}) };
+    for (const [k, v] of Object.entries(overlay.metadata)) {
+      if (v === undefined || v === null || (typeof v === "string" && v.trim() === "")) {
+        delete base[k];
+      } else if (k === BENCH_MANAGER_EMAIL_METADATA_KEY && typeof v === "string") {
+        base[k] = normalizePersonaEmail(v.trim());
+      } else {
+        base[k] = v;
+      }
+    }
+    patch.metadata = base;
   }
 
   if (overlay.adapterType !== undefined) {

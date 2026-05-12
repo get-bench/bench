@@ -27,6 +27,7 @@ function createAgent(id: string, name: string, icon: string, urlKey: string): Ag
     urlKey,
     role: "engineer",
     title: null,
+    coworkerEmail: null,
     icon,
     status: "active",
     reportsTo: null,

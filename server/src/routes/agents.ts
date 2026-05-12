@@ -49,7 +49,15 @@ import {
 } from "../services/index.js";
 import { normalizeActivityLimit } from "../services/activity.js";
 import { conflict, forbidden, notFound, unprocessable } from "../errors.js";
-import { assertBoard, assertCompanyAccess, assertInstanceAdmin, getActorInfo } from "./authz.js";
+import {
+  assertBoard,
+  assertCompanyAccess,
+  assertInstanceAdmin,
+  assertWorkspaceCapability,
+  getActorInfo,
+  getActorRoleForCompany,
+} from "./authz.js";
+import type { WorkspaceCapability } from "@bench/shared";
 import {
   assertNoAgentHostWorkspaceCommandMutation,
   collectAgentAdapterWorkspaceCommandPaths,
@@ -374,16 +382,31 @@ export function agentRoutes(
     );
   }
 
-  async function assertCanCreateAgentsForCompany(req: Request, companyId: string) {
-    assertCompanyAccess(req, companyId);
+  /**
+   * Two distinct things land on the same agents-create code path:
+   *   - "request"  — file a hire request (owner/admin/operator); creates an
+   *                  Approval row that an Owner/Admin must decide.
+   *   - "direct"   — instantiate a coworker now, no approval (owner/admin
+   *                  only — see `roles.md` §5 "Hire / terminate coworkers").
+   *
+   * The agent-hires route resolves which mode applies after reading the
+   * workspace setting + first-hire bypass. Routes that always direct-hire
+   * pass `mode: "direct"` to enforce the stricter capability up front.
+   */
+  async function assertCanCreateAgentsForCompany(
+    req: Request,
+    companyId: string,
+    mode: "request" | "direct" = "request",
+  ) {
     if (req.actor.type === "board") {
-      if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) return null;
-      const allowed = await access.canUser(companyId, req.actor.userId, "agents:create");
-      if (!allowed) {
-        throw forbidden("Missing permission: agents:create");
-      }
+      const capability: WorkspaceCapability =
+        mode === "direct"
+          ? "workspace:coworkers:hire_direct"
+          : "workspace:hire_request:create";
+      assertWorkspaceCapability(req, companyId, capability);
       return null;
     }
+    assertCompanyAccess(req, companyId);
     if (!req.actor.agentId) throw forbidden("Agent authentication required");
     const actorAgent = await svc.getById(req.actor.agentId);
     if (!actorAgent || actorAgent.companyId !== companyId) {
@@ -398,12 +421,59 @@ export function agentRoutes(
 
   async function assertBoardCanManageAgentsForCompany(req: Request, companyId: string) {
     assertBoard(req);
-    assertCompanyAccess(req, companyId);
-    if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) return;
-    const allowed = await access.canUser(companyId, req.actor.userId, "agents:create");
-    if (!allowed) {
-      throw forbidden("Missing permission: agents:create");
+    // Per roles.md §5: managing existing coworkers (terminate, edit any) is
+    // Owner/Admin only — same gate as hire_direct.
+    assertWorkspaceCapability(req, companyId, "workspace:coworkers:edit_any");
+  }
+
+  /**
+   * Roster-scoped pause/resume gate.
+   *
+   * Per roles.md §4.4 a People Manager can pause / resume coworkers **in
+   * their own roster** — defined as coworkers whose
+   * `agents.metadata.benchManagerEmail` matches the signed-in email — but not
+   * other coworkers. Owners and Admins (and instance admins / local board)
+   * may operate on any coworker. Agent callers are excluded; they have no
+   * business pausing other agents on the human pause path.
+   *
+   * Caller must already have run `getAccessibleAgent` (which does
+   * `assertCompanyAccess`) so company boundaries are enforced.
+   */
+  function assertCanPauseResumeAgent(
+    req: Request,
+    agent: { companyId: string; metadata: Record<string, unknown> | null },
+  ) {
+    if (req.actor.type !== "board") {
+      throw forbidden("Board access required");
     }
+    if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) {
+      return;
+    }
+    const memberships = Array.isArray(req.actor.memberships) ? req.actor.memberships : [];
+    const membership = memberships.find((row) => row.companyId === agent.companyId);
+    if (!membership || membership.status !== "active") {
+      throw forbidden("User does not have active workspace access");
+    }
+    if (membership.membershipRole === "owner" || membership.membershipRole === "admin") {
+      return;
+    }
+    if (membership.membershipRole === "operator" || membership.membershipRole === "member") {
+      const callerEmail =
+        typeof req.actor.userEmail === "string" ? req.actor.userEmail.trim().toLowerCase() : "";
+      const benchManagerEmail =
+        agent.metadata && typeof agent.metadata === "object"
+          ? (agent.metadata as Record<string, unknown>).benchManagerEmail
+          : null;
+      const rosterEmail =
+        typeof benchManagerEmail === "string" ? benchManagerEmail.trim().toLowerCase() : "";
+      if (callerEmail && rosterEmail && callerEmail === rosterEmail) {
+        return;
+      }
+      throw forbidden(
+        "People Managers can only pause or resume coworkers in their own roster",
+      );
+    }
+    throw forbidden("Requires Workspace Owner, Workspace Admin, or roster ownership");
   }
 
   async function assertCanReadConfigurations(req: Request, companyId: string) {
@@ -503,12 +573,47 @@ export function agentRoutes(
     };
   }
 
-  async function assertCanUpdateAgent(req: Request, targetAgent: { id: string; companyId: string }) {
-    assertCompanyAccess(req, targetAgent.companyId);
+  async function assertCanUpdateAgent(
+    req: Request,
+    targetAgent: { id: string; companyId: string; metadata?: Record<string, unknown> | null },
+  ) {
     if (req.actor.type === "board") {
-      await assertBoardCanManageAgentsForCompany(req, targetAgent.companyId);
-      return;
+      // Owner/Admin (and instance_admin / local_implicit) can edit any
+      // coworker. People Managers are allowed to edit coworkers in their own
+      // roster (roles.md §4.4 — "Set instructions, skills, and connector-
+      // access requests for their roster"). Anyone else is blocked.
+      assertCompanyAccess(req, targetAgent.companyId);
+      if (req.actor.source === "local_implicit" || req.actor.isInstanceAdmin) return;
+      const memberships = Array.isArray(req.actor.memberships) ? req.actor.memberships : [];
+      const membership = memberships.find((row) => row.companyId === targetAgent.companyId);
+      if (!membership || membership.status !== "active") {
+        throw forbidden("User does not have active workspace access");
+      }
+      if (membership.membershipRole === "owner" || membership.membershipRole === "admin") {
+        return;
+      }
+      if (membership.membershipRole === "operator" || membership.membershipRole === "member") {
+        const callerEmail =
+          typeof req.actor.userEmail === "string"
+            ? req.actor.userEmail.trim().toLowerCase()
+            : "";
+        const benchManagerEmail =
+          targetAgent.metadata && typeof targetAgent.metadata === "object"
+            ? (targetAgent.metadata as Record<string, unknown>).benchManagerEmail
+            : null;
+        const rosterEmail =
+          typeof benchManagerEmail === "string"
+            ? benchManagerEmail.trim().toLowerCase()
+            : "";
+        if (callerEmail && rosterEmail && callerEmail === rosterEmail) return;
+        throw forbidden(
+          "People Managers can only modify coworkers in their own roster",
+        );
+      }
+      throw forbidden("Requires Workspace Owner or Workspace Admin");
     }
+
+    assertCompanyAccess(req, targetAgent.companyId);
     if (!req.actor.agentId) throw forbidden("Agent authentication required");
 
     const actorAgent = await svc.getById(req.actor.agentId);
@@ -1831,7 +1936,34 @@ export function agentRoutes(
       return;
     }
 
-    const requiresApproval = company.requireBoardApprovalForNewAgents;
+    // First-hire bypass (separation-of-duties carve-out — see doc/roles.md §7.1).
+    // If this workspace has no non-terminated agents, there's nobody to approve a
+    // hire request and the requester would otherwise be forced to self-approve
+    // (which the approval routes block with 403 self_approval_forbidden). Skip
+    // the gate for the very first hire; subsequent hires honor the workspace
+    // setting normally.
+    const existingAgentRows = await db
+      .select({ id: agentsTable.id })
+      .from(agentsTable)
+      .where(
+        and(
+          eq(agentsTable.companyId, companyId),
+          not(eq(agentsTable.status, "terminated")),
+        ),
+      )
+      .limit(1);
+    const isFirstHireForWorkspace = existingAgentRows.length === 0;
+    const requiresApproval =
+      company.requireBoardApprovalForNewAgents && !isFirstHireForWorkspace;
+    // Second-stage role gate: the entry gate above accepts the broader
+    // `workspace:hire_request:create` capability (owner/admin/operator). When
+    // this request will *not* go through an Approval — because the workspace
+    // setting allows direct hires, or it's the first-hire bypass — escalate
+    // to `workspace:coworkers:hire_direct` (owner/admin only) to keep
+    // operators from minting live coworkers without review.
+    if (!requiresApproval && req.actor.type === "board") {
+      assertWorkspaceCapability(req, companyId, "workspace:coworkers:hire_direct");
+    }
     const status = requiresApproval ? "pending_approval" : "idle";
     const createdAgent = await svc.create(companyId, {
       ...normalizedHireInput,
@@ -1916,6 +2048,7 @@ export function agentRoutes(
         role: agent.role,
         requiresApproval,
         approvalId: approval?.id ?? null,
+        firstHireBypass: isFirstHireForWorkspace,
         issueIds: sourceIssueIds,
         desiredSkills: desiredSkillAssignment.desiredSkills,
       },
@@ -1950,7 +2083,9 @@ export function agentRoutes(
 
   router.post("/companies/:companyId/agents", validate(createAgentSchema), async (req, res) => {
     const companyId = req.params.companyId as string;
-    await assertCanCreateAgentsForCompany(req, companyId);
+    // Direct create: bypasses the approval flow entirely, so it's gated on
+    // the stricter `workspace:coworkers:hire_direct` (Owner/Admin only).
+    await assertCanCreateAgentsForCompany(req, companyId, "direct");
 
     const company = await db
       .select()
@@ -2511,9 +2646,11 @@ export function agentRoutes(
   router.post("/agents/:id/pause", async (req, res) => {
     assertBoard(req);
     const id = req.params.id as string;
-    if (!(await getAccessibleAgent(req, res, id))) {
+    const existing = await getAccessibleAgent(req, res, id);
+    if (!existing) {
       return;
     }
+    assertCanPauseResumeAgent(req, existing);
     const agent = await svc.pause(id);
     if (!agent) {
       res.status(404).json({ error: "Agent not found" });
@@ -2526,6 +2663,7 @@ export function agentRoutes(
       companyId: agent.companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, agent.companyId),
       action: "agent.paused",
       entityType: "agent",
       entityId: agent.id,
@@ -2537,9 +2675,11 @@ export function agentRoutes(
   router.post("/agents/:id/resume", async (req, res) => {
     assertBoard(req);
     const id = req.params.id as string;
-    if (!(await getAccessibleAgent(req, res, id))) {
+    const existing = await getAccessibleAgent(req, res, id);
+    if (!existing) {
       return;
     }
+    assertCanPauseResumeAgent(req, existing);
     const agent = await svc.resume(id);
     if (!agent) {
       res.status(404).json({ error: "Agent not found" });
@@ -2550,6 +2690,7 @@ export function agentRoutes(
       companyId: agent.companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, agent.companyId),
       action: "agent.resumed",
       entityType: "agent",
       entityId: agent.id,
@@ -2565,6 +2706,9 @@ export function agentRoutes(
     if (!existing) {
       return;
     }
+    // Approving a pending hire is the same authority as deciding the
+    // companion `hire_agent` Approval — Owner/Admin only (roles.md §5).
+    assertWorkspaceCapability(req, existing.companyId, "workspace:hire_request:approve");
     if (existing.status !== "pending_approval") {
       res.status(409).json({ error: "Only pending approval agents can be approved" });
       return;
@@ -2584,6 +2728,7 @@ export function agentRoutes(
       companyId: agent.companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, agent.companyId),
       action: "agent.approved",
       entityType: "agent",
       entityId: agent.id,
@@ -2596,9 +2741,13 @@ export function agentRoutes(
   router.post("/agents/:id/terminate", async (req, res) => {
     assertBoard(req);
     const id = req.params.id as string;
-    if (!(await getAccessibleAgent(req, res, id))) {
+    const existing = await getAccessibleAgent(req, res, id);
+    if (!existing) {
       return;
     }
+    // Terminate is destructive and can never be initiated by a People Manager
+    // (roles.md §5 "Hire / terminate coworkers" — Owner/Admin only).
+    assertWorkspaceCapability(req, existing.companyId, "workspace:coworkers:terminate");
     const agent = await svc.terminate(id);
     if (!agent) {
       res.status(404).json({ error: "Agent not found" });
@@ -2611,6 +2760,7 @@ export function agentRoutes(
       companyId: agent.companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, agent.companyId),
       action: "agent.terminated",
       entityType: "agent",
       entityId: agent.id,
@@ -2622,9 +2772,12 @@ export function agentRoutes(
   router.delete("/agents/:id", async (req, res) => {
     assertBoard(req);
     const id = req.params.id as string;
-    if (!(await getAccessibleAgent(req, res, id))) {
+    const existing = await getAccessibleAgent(req, res, id);
+    if (!existing) {
       return;
     }
+    // Hard-delete is at least as destructive as terminate — gate identically.
+    assertWorkspaceCapability(req, existing.companyId, "workspace:coworkers:terminate");
     const agent = await svc.remove(id);
     if (!agent) {
       res.status(404).json({ error: "Agent not found" });
@@ -2635,6 +2788,7 @@ export function agentRoutes(
       companyId: agent.companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, agent.companyId),
       action: "agent.deleted",
       entityType: "agent",
       entityId: agent.id,
@@ -2661,12 +2815,17 @@ export function agentRoutes(
     if (!agent) {
       return;
     }
+    // Minting an API key for a coworker grants long-lived workspace access —
+    // sensitive enough to require the same Owner/Admin gate as edit_any
+    // (roles.md §5).
+    assertWorkspaceCapability(req, agent.companyId, "workspace:coworkers:edit_any");
     const key = await svc.createApiKey(id, req.body.name);
 
     await logActivity(db, {
       companyId: agent.companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, agent.companyId),
       action: "agent.key_created",
       entityType: "agent",
       entityId: agent.id,
@@ -2684,6 +2843,8 @@ export function agentRoutes(
     if (!agent) {
       return;
     }
+    // Revoking is the inverse of minting; same gate.
+    assertWorkspaceCapability(req, agent.companyId, "workspace:coworkers:edit_any");
 
     const key = await svc.getKeyById(keyId);
     if (!key || key.agentId !== agent.id) {
@@ -2701,6 +2862,7 @@ export function agentRoutes(
       companyId: agent.companyId,
       actorType: "user",
       actorId: req.actor.userId ?? "board",
+      actorRole: getActorRoleForCompany(req, agent.companyId),
       action: "agent.key_revoked",
       entityType: "agent",
       entityId: agent.id,

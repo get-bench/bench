@@ -77,6 +77,8 @@ export interface Agent {
   urlKey: string;
   role: CoworkerRole;
   title: string | null;
+  /** Suggested work email for ecosystem invites; Bench does not provision mailboxes. */
+  coworkerEmail: string | null;
   icon: string | null;
   status: AgentStatus;
   reportsTo: string | null;

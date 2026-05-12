@@ -525,6 +525,7 @@ function buildAcpxAgent({
     urlKey: `acpx-${acpAgent}`,
     role: "engineer",
     title: `ACPX ${acpAgent} agent`,
+    coworkerEmail: null,
     icon: "code",
     status: "idle",
     reportsTo: null,
@@ -548,7 +549,7 @@ function buildAcpxAgent({
     metadata: null,
     createdAt: new Date("2026-04-30T12:00:00.000Z"),
     updatedAt: new Date("2026-04-30T12:00:00.000Z"),
-  } as Agent;
+  };
 }
 
 function buildAcpxClaudeSnapshot(): AgentSkillSnapshot {

@@ -60,13 +60,35 @@ export interface LogActivityInput {
   agentId?: string | null;
   runId?: string | null;
   details?: Record<string, unknown> | null;
+  /**
+   * Resolved RBAC role at the time of the mutation. For board users this is
+   * the workspace membership role (`owner | admin | operator | viewer`),
+   * `instance_admin` for instance admins acting on a workspace, or
+   * `local_implicit` for the single-tenant boot mode. Optional because
+   * non-mutating events and agent/system events don't have a meaningful
+   * workspace role. When provided, it is merged into `details.actorRole`
+   * so audit consumers don't need a schema change to read it.
+   */
+  actorRole?: string | null;
 }
 
 export async function logActivity(db: Db, input: LogActivityInput) {
   const currentUserRedactionOptions = {
     enabled: (await instanceSettingsService(db).getGeneral()).censorUsernameInLogs,
   };
-  const sanitizedDetails = input.details ? sanitizeRecord(input.details) : null;
+  // Merge actorRole into details so audit consumers always find it at a
+  // stable key, regardless of whether the call site supplied details. A
+  // caller-provided `details.actorRole` always wins over the inferred role.
+  const baseDetails = input.details ?? null;
+  let detailsWithRole: Record<string, unknown> | null = baseDetails;
+  if (input.actorRole != null) {
+    const callerRole = baseDetails?.actorRole;
+    detailsWithRole = {
+      ...(baseDetails ?? {}),
+      actorRole: callerRole ?? input.actorRole,
+    };
+  }
+  const sanitizedDetails = detailsWithRole ? sanitizeRecord(detailsWithRole) : null;
   const redactedDetails = sanitizedDetails
     ? redactCurrentUserValue(sanitizedDetails, currentUserRedactionOptions)
     : null;

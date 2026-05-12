@@ -282,7 +282,7 @@ test.describe("Multi-user: Company Settings UI", () => {
   });
 
   test("shows Team and Invites sections on settings page", async ({ page }) => {
-    await page.goto(`${BASE}/${companyPrefix}/company/settings`);
+    await page.goto(`${BASE}/${companyPrefix}/workspace/settings`);
     await page.waitForLoadState("networkidle");
     await expect(page.getByTestId("company-settings-invites-section")).toBeVisible({
       timeout: 10_000,
@@ -293,7 +293,7 @@ test.describe("Multi-user: Company Settings UI", () => {
   });
 
   test("shows human invite creation controls", async ({ page }) => {
-    await page.goto(`${BASE}/${companyPrefix}/company/settings`);
+    await page.goto(`${BASE}/${companyPrefix}/workspace/settings`);
     await page.waitForLoadState("networkidle");
     const inviteButton = page.getByTestId("company-settings-create-human-invite");
     await expect(inviteButton).toBeVisible({ timeout: 10_000 });
@@ -303,7 +303,7 @@ test.describe("Multi-user: Company Settings UI", () => {
   });
 
   test("can create human invite and shows URL", async ({ page }) => {
-    await page.goto(`${BASE}/${companyPrefix}/company/settings`);
+    await page.goto(`${BASE}/${companyPrefix}/workspace/settings`);
     await page.waitForLoadState("networkidle");
     const inviteButton = page.getByTestId("company-settings-create-human-invite");
     await expect(inviteButton).toBeVisible({ timeout: 10_000 });

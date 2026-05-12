@@ -74,7 +74,12 @@ import {
   collapseDuplicatePendingHumanJoinRequests,
   findReusableHumanJoinRequest,
 } from "../lib/join-request-dedupe.js";
-import { assertAuthenticated, assertCompanyAccess } from "./authz.js";
+import {
+  assertAuthenticated,
+  assertCompanyAccess,
+  assertWorkspaceCapability,
+  getActorRoleForCompany,
+} from "./authz.js";
 import {
   claimBoardOwnership,
   inspectBoardClaimChallenge
@@ -4009,7 +4014,11 @@ export function accessRoutes(
     async (req, res) => {
       const companyId = req.params.companyId as string;
       const memberId = req.params.memberId as string;
-      await assertCompanyPermission(req, companyId, "users:manage_permissions");
+      // Per roles.md §5: Workspace Owner and Admin can manage members. The
+      // legacy `users:manage_permissions` grant only fired for Owner; Admin
+      // was being silently locked out. Switching to the role matrix fixes
+      // that and makes the gate visibly auditable next to the route.
+      assertWorkspaceCapability(req, companyId, "workspace:members:manage");
       const memberToUpdate = await access.getMemberById(companyId, memberId);
       if (!memberToUpdate) throw notFound("Member not found");
       await assertCanManageCompanyMember(req, access, companyId, memberToUpdate);
@@ -4083,6 +4092,7 @@ export function accessRoutes(
         companyId,
         actorType: "user",
         actorId: req.actor.userId ?? "board",
+        actorRole: getActorRoleForCompany(req, companyId),
         action: "company_member.updated",
         entityType: "company_membership",
         entityId: memberId,
@@ -4106,7 +4116,7 @@ export function accessRoutes(
     async (req, res) => {
       const companyId = req.params.companyId as string;
       const memberId = req.params.memberId as string;
-      await assertCompanyPermission(req, companyId, "users:manage_permissions");
+      assertWorkspaceCapability(req, companyId, "workspace:members:manage");
       const memberToUpdate = await access.getMemberById(companyId, memberId);
       if (!memberToUpdate) throw notFound("Member not found");
       await assertCanManageCompanyMember(req, access, companyId, memberToUpdate);
@@ -4209,6 +4219,7 @@ export function accessRoutes(
         companyId,
         actorType: "user",
         actorId: req.actor.userId ?? "board",
+        actorRole: getActorRoleForCompany(req, companyId),
         action: "company_member.access_updated",
         entityType: "company_membership",
         entityId: memberId,
@@ -4233,7 +4244,7 @@ export function accessRoutes(
     async (req, res) => {
       const companyId = req.params.companyId as string;
       const memberId = req.params.memberId as string;
-      await assertCompanyPermission(req, companyId, "users:manage_permissions");
+      assertWorkspaceCapability(req, companyId, "workspace:members:manage");
       const memberToArchive = await access.getMemberById(companyId, memberId);
       if (!memberToArchive) throw notFound("Member not found");
       await assertCanManageCompanyMember(req, access, companyId, memberToArchive, "archive");
@@ -4247,6 +4258,7 @@ export function accessRoutes(
         companyId,
         actorType: "user",
         actorId: req.actor.userId ?? "board",
+        actorRole: getActorRoleForCompany(req, companyId),
         action: "company_member.archived",
         entityType: "company_membership",
         entityId: memberId,
@@ -4274,7 +4286,7 @@ export function accessRoutes(
     async (req, res) => {
       const companyId = req.params.companyId as string;
       const memberId = req.params.memberId as string;
-      await assertCompanyPermission(req, companyId, "users:manage_permissions");
+      assertWorkspaceCapability(req, companyId, "workspace:members:manage");
       const memberToUpdate = await access.getMemberById(companyId, memberId);
       if (!memberToUpdate) throw notFound("Member not found");
       await assertCanManageCompanyMember(req, access, companyId, memberToUpdate);
@@ -4289,6 +4301,7 @@ export function accessRoutes(
         companyId,
         actorType: "user",
         actorId: req.actor.userId ?? "board",
+        actorRole: getActorRoleForCompany(req, companyId),
         action: "company_member.permissions_updated",
         entityType: "company_membership",
         entityId: memberId,

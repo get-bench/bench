@@ -48,13 +48,19 @@ import { ClaudeLocalAdvancedFields } from "../adapters/claude-local/config-field
 import { MarkdownEditor } from "./MarkdownEditor";
 import { ChoosePathButton } from "./PathInstructionsModal";
 import { OpenCodeLogoIcon } from "./OpenCodeLogoIcon";
-import { ReportsToPicker } from "./ReportsToPicker";
+import { UnifiedManagerPicker } from "./UnifiedManagerPicker";
 import { EnvVarEditor } from "./EnvVarEditor";
 import { shouldShowLegacyWorkingDirectoryField } from "../lib/legacy-agent-config";
 import { listAdapterOptions, listVisibleAdapterTypes } from "../adapters/metadata";
 import { getAdapterDisplay, getAdapterLabel } from "../adapters/adapter-display-registry";
 import { useDisabledAdaptersSync } from "../adapters/use-disabled-adapters";
 import { buildAgentUpdatePatch, type AgentConfigOverlay } from "../lib/agent-config-patch";
+import { suggestCoworkerWorkEmail } from "../lib/coworker-email-suggest";
+import {
+  BENCH_MANAGER_EMAIL_METADATA_KEY,
+  getBenchManagerEmailFromMetadata,
+  normalizePersonaEmail,
+} from "../lib/manager-scope";
 import { useAdapterCapabilities } from "../adapters/use-adapter-capabilities";
 
 /* ---- Create mode values ---- */
@@ -119,7 +125,8 @@ function isOverlayDirty(o: AgentConfigOverlay): boolean {
     Object.keys(o.adapterConfig).length > 0 ||
     Object.keys(o.heartbeat).length > 0 ||
     Object.keys(o.runtime).length > 0 ||
-    o.modelProfiles?.cheap !== undefined
+    o.modelProfiles?.cheap !== undefined ||
+    (o.metadata != null && Object.keys(o.metadata).length > 0)
   );
 }
 
@@ -189,7 +196,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   const showInlineAdapterTestEnvironmentFeedback = !props.onTestFeedbackChange;
   const showCreateRunPolicySection = props.showCreateRunPolicySection ?? true;
   const hideInstructionsFile = props.hideInstructionsFile ?? false;
-  const { selectedCompanyId } = useCompany();
+  const { selectedCompanyId, selectedCompany } = useCompany();
   const queryClient = useQueryClient();
 
   // Sync disabled adapter types from server so dropdown filters them out
@@ -263,6 +270,13 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     }));
   }
 
+  function markMeta(partial: Record<string, unknown>) {
+    setOverlay((prev) => ({
+      ...prev,
+      metadata: { ...(prev.metadata ?? {}), ...partial },
+    }));
+  }
+
   /** Build accumulated patch and send to parent */
   const handleCancel = useCallback(() => {
     setOverlay({ ...emptyOverlay });
@@ -333,6 +347,7 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
   });
   const [refreshModelsError, setRefreshModelsError] = useState<string | null>(null);
   const [refreshingModels, setRefreshingModels] = useState(false);
+  const [adapterSnapshotOpen, setAdapterSnapshotOpen] = useState(false);
   const models = fetchedModels ?? externalModels ?? [];
   const adapterCommandField =
     adapterType === "hermes_local" ? "hermesCommand" : "command";
@@ -359,6 +374,32 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
     queryFn: () => agentsApi.list(selectedCompanyId!),
     enabled: Boolean(!isCreate && selectedCompanyId),
   });
+
+  const knownManagerEmails = useMemo(() => {
+    const emails = new Set<string>();
+    for (const a of companyAgents) {
+      const e = getBenchManagerEmailFromMetadata(a.metadata);
+      if (e) emails.add(e);
+    }
+    return [...emails].sort((x, y) => x.localeCompare(y));
+  }, [companyAgents]);
+
+  const editAgent = isCreate ? null : props.agent;
+  const effectiveBenchManagerEmail = useMemo(() => {
+    if (!editAgent) return null;
+    if (
+      overlay.metadata &&
+      Object.prototype.hasOwnProperty.call(overlay.metadata, BENCH_MANAGER_EMAIL_METADATA_KEY)
+    ) {
+      const v = overlay.metadata![BENCH_MANAGER_EMAIL_METADATA_KEY];
+      if (typeof v === "string") {
+        const t = v.trim();
+        return t ? normalizePersonaEmail(t) : null;
+      }
+      return null;
+    }
+    return getBenchManagerEmailFromMetadata(editAgent.metadata);
+  }, [editAgent, overlay.metadata]);
 
   /** Props passed to adapter-specific config field components */
   const adapterFieldProps = {
@@ -672,15 +713,98 @@ export function AgentConfigForm(props: AgentConfigFormProps) {
                 placeholder="e.g. VP of Engineering"
               />
             </Field>
-            <Field label="Reports to" hint={help.reportsTo}>
-              <ReportsToPicker
+            <Field
+              label="Coworker work email"
+              hint="Suggested address for IT (Slack, calendar, ACLs). Bench does not provision mailboxes—create the mailbox or alias in your tenant and paste it here."
+            >
+              <div className="space-y-1.5">
+                <DraftInput
+                  value={eff("identity", "coworkerEmail", props.agent.coworkerEmail ?? "")}
+                  onCommit={(v) => mark("identity", "coworkerEmail", v.trim() || null)}
+                  immediate
+                  className={inputClass}
+                  type="email"
+                  autoComplete="off"
+                  placeholder="e.g. alex.bench@yourcompany.com"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs"
+                    onClick={() => {
+                      const hint = suggestCoworkerWorkEmail(
+                        eff("identity", "name", props.agent.name),
+                        selectedCompany?.name ?? "company",
+                      );
+                      mark("identity", "coworkerEmail", hint);
+                    }}
+                  >
+                    Use suggested pattern
+                  </Button>
+                  <span className="text-[10px] text-muted-foreground">
+                    Example:{" "}
+                    {suggestCoworkerWorkEmail(
+                      eff("identity", "name", props.agent.name),
+                      selectedCompany?.name ?? "company",
+                    )}
+                  </span>
+                </div>
+              </div>
+            </Field>
+            <Field
+              label="Manager & reporting"
+              hint={`${help.reportsTo} People manager email scopes the Manager dashboard (human); pick an existing address from your company or add a new one.`}
+            >
+              <UnifiedManagerPicker
                 agents={companyAgents}
-                value={eff("identity", "reportsTo", props.agent.reportsTo ?? null)}
-                onChange={(id) => mark("identity", "reportsTo", id)}
                 excludeAgentIds={[props.agent.id]}
-                chooseLabel="Choose manager…"
+                reportsToId={eff("identity", "reportsTo", props.agent.reportsTo ?? null)}
+                onReportsToChange={(id) => mark("identity", "reportsTo", id)}
+                benchManagerEmail={effectiveBenchManagerEmail}
+                onBenchManagerEmailChange={(email) =>
+                  markMeta({ [BENCH_MANAGER_EMAIL_METADATA_KEY]: email ?? "" })
+                }
+                knownManagerEmails={knownManagerEmails}
               />
             </Field>
+            <CollapsibleSection
+              title="Adapter configuration snapshot"
+              open={adapterSnapshotOpen}
+              onToggle={() => setAdapterSnapshotOpen((o) => !o)}
+              bordered
+            >
+              <dl className="grid grid-cols-[minmax(0,7rem)_1fr] gap-x-3 gap-y-1.5 text-xs">
+                <dt className="text-muted-foreground">Adapter type</dt>
+                <dd className="font-mono break-all">{adapterType}</dd>
+                <dt className="text-muted-foreground">Model</dt>
+                <dd className="font-mono break-all">
+                  {typeof config.model === "string" && String(config.model).trim()
+                    ? String(config.model).trim()
+                    : "—"}
+                </dd>
+                <dt className="text-muted-foreground">Max concurrent runs</dt>
+                <dd className="font-mono">
+                  {typeof (runtimeConfig.heartbeat as Record<string, unknown> | undefined)?.maxConcurrentRuns ===
+                    "number" &&
+                  Number.isFinite(
+                    (runtimeConfig.heartbeat as Record<string, unknown>).maxConcurrentRuns as number,
+                  )
+                    ? String((runtimeConfig.heartbeat as Record<string, unknown>).maxConcurrentRuns)
+                    : "—"}
+                </dd>
+                <dt className="text-muted-foreground">Env bindings</dt>
+                <dd className="font-mono">
+                  {typeof config.env === "object" && config.env !== null && !Array.isArray(config.env)
+                    ? `${Object.keys(config.env as Record<string, unknown>).length} keys`
+                    : "0 keys"}
+                </dd>
+              </dl>
+              <p className="mt-2 text-[10px] text-muted-foreground leading-relaxed">
+                Secrets are not shown. Edit adapter fields in the Adapter section below; this panel is read-only.
+              </p>
+            </CollapsibleSection>
             <Field label="Capabilities" hint={help.capabilities}>
               <MarkdownEditor
                 value={eff("identity", "capabilities", props.agent.capabilities ?? "") ?? ""}

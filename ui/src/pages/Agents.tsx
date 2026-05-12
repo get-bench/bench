@@ -26,6 +26,7 @@ import { useDashboardAgentScope } from "../context/DashboardPersonaContext";
 import { CX } from "../lib/coworker-language";
 import { getBenchManagerEmailFromMetadata } from "../lib/manager-scope";
 import { buildManagerScopedOrgNodes } from "../lib/manager-org-tree";
+import { ManagerScopeRecovery } from "../components/ManagerScopeRecovery";
 
 const roleLabels = COWORKER_ROLE_LABELS as Record<string, string>;
 
@@ -190,11 +191,20 @@ export function Agents() {
   return (
     <div className="space-y-4">
       {scope.isManagerView && (!scope.sessionEmail || scope.scopedAgents.length === 0) ? (
-        <p className="text-sm text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
-          {!scope.sessionEmail
-            ? "Manager view needs a signed-in email to list coworkers assigned to you."
-            : "No coworkers assigned yet — ask an admin to set benchManagerEmail on agents."}
-        </p>
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground rounded-md border border-border bg-muted/30 px-3 py-2">
+            {!scope.sessionEmail
+              ? "Manager view needs a signed-in email to list coworkers assigned to you."
+              : `No coworkers list ${scope.sessionEmail} as their people manager yet. New hires default to you — older coworkers can be claimed below or assigned per-coworker.`}
+          </p>
+          {selectedCompanyId && scope.sessionEmail ? (
+            <ManagerScopeRecovery
+              companyId={selectedCompanyId}
+              agents={agents}
+              sessionEmail={scope.sessionEmail}
+            />
+          ) : null}
+        </div>
       ) : null}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

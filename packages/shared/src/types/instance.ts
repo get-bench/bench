@@ -19,11 +19,27 @@ export const DEFAULT_BACKUP_RETENTION: BackupRetentionPolicy = {
   monthlyMonths: 1,
 };
 
+/** OIDC SSO configuration stored in instance settings. Client secret must be supplied via environment, not the database. */
+export interface InstanceSsoOidcSettings {
+  enabled: boolean;
+  /** OIDC issuer base URL (e.g. https://id.example.com). */
+  issuerUrl: string;
+  /** Public OIDC client id. */
+  clientId: string;
+}
+
+export const DEFAULT_SSO_OIDC: InstanceSsoOidcSettings = {
+  enabled: false,
+  issuerUrl: "",
+  clientId: "",
+};
+
 export interface InstanceGeneralSettings {
   censorUsernameInLogs: boolean;
   keyboardShortcuts: boolean;
   feedbackDataSharingPreference: FeedbackDataSharingPreference;
   backupRetention: BackupRetentionPolicy;
+  ssoOidc: InstanceSsoOidcSettings;
 }
 
 export interface InstanceExperimentalSettings {
@@ -32,6 +48,7 @@ export interface InstanceExperimentalSettings {
   autoRestartDevServerWhenIdle: boolean;
   enableIssueGraphLivenessAutoRecovery: boolean;
   issueGraphLivenessAutoRecoveryLookbackHours: number;
+  enableConnectorRuntime: boolean;
 }
 
 export interface InstanceSettings {

@@ -6,6 +6,8 @@ import { activityApi } from "../api/activity";
 import { accessApi } from "../api/access";
 import { issuesApi } from "../api/issues";
 import { agentsApi } from "../api/agents";
+import { approvalsApi } from "../api/approvals";
+import { authApi } from "../api/auth";
 import { projectsApi } from "../api/projects";
 import { buildCompanyUserProfileMap } from "../lib/company-members";
 import { useCompany } from "../context/CompanyContext";
@@ -19,8 +21,8 @@ import { StatusIcon } from "../components/StatusIcon";
 import { ActivityRow } from "../components/ActivityRow";
 import { Identity } from "../components/Identity";
 import { timeAgo } from "../lib/timeAgo";
-import { cn, formatCents } from "../lib/utils";
-import { Bot, CircleDot, DollarSign, ShieldCheck, LayoutDashboard, PauseCircle, Users } from "lucide-react";
+import { agentUrl, cn, formatCents } from "../lib/utils";
+import { Bot, CircleDot, Clock, DollarSign, ShieldCheck, LayoutDashboard, PauseCircle, Users } from "lucide-react";
 import { ActiveAgentsPanel } from "../components/ActiveAgentsPanel";
 import { ChartCard, RunActivityChart, PriorityChart, IssueStatusChart, SuccessRateChart } from "../components/ActivityCharts";
 import { PageSkeleton } from "../components/PageSkeleton";
@@ -34,6 +36,7 @@ import {
   taskCountsFromIssues,
 } from "../lib/manager-scope";
 import { computeAdminCoworkerOverview } from "../lib/admin-coworker-stats";
+import { ManagerScopeRecovery } from "../components/ManagerScopeRecovery";
 
 const DASHBOARD_ACTIVITY_LIMIT = 10;
 const DASHBOARD_ACTIVITY_LIMIT_MANAGER = 48;
@@ -100,6 +103,42 @@ export function Dashboard() {
     queryFn: () => accessApi.listUserDirectory(selectedCompanyId!),
     enabled: !!selectedCompanyId,
   });
+
+  // Approvals for the current workspace, used to surface a "you have N
+  // pending hire requests" strip to the requester (P1 A5 — see
+  // doc/plans/2026-05-11-rbac-and-hire-requests.md §9).
+  const { data: workspaceApprovals } = useQuery({
+    queryKey: queryKeys.approvals.list(selectedCompanyId!, undefined),
+    queryFn: () => approvalsApi.list(selectedCompanyId!),
+    enabled: !!selectedCompanyId,
+  });
+
+  const { data: session } = useQuery({
+    queryKey: queryKeys.auth.session,
+    queryFn: () => authApi.getSession(),
+  });
+  const currentUserId = session?.user.id ?? session?.session.userId ?? null;
+
+  const myPendingHireRequests = useMemo(() => {
+    if (!currentUserId || !workspaceApprovals) return [];
+    return workspaceApprovals.filter(
+      (a) =>
+        a.type === "hire_agent"
+        && a.requestedByUserId === currentUserId
+        && (a.status === "pending" || a.status === "revision_requested"),
+    );
+  }, [workspaceApprovals, currentUserId]);
+
+  const oldestMyPendingHireRequest = useMemo(() => {
+    if (myPendingHireRequests.length === 0) return null;
+    return myPendingHireRequests.reduce((oldest, candidate) => {
+      const candidateTime = new Date(candidate.createdAt).getTime();
+      const oldestTime = new Date(oldest.createdAt).getTime();
+      if (!Number.isFinite(candidateTime)) return oldest;
+      if (!Number.isFinite(oldestTime)) return candidate;
+      return candidateTime < oldestTime ? candidate : oldest;
+    });
+  }, [myPendingHireRequests]);
 
   const userProfileMap = useMemo(
     () => buildCompanyUserProfileMap(companyMembers?.users),
@@ -254,19 +293,28 @@ export function Dashboard() {
       {error && <p className="text-sm text-destructive">{error.message}</p>}
 
       {isManagerView && (!scope.sessionEmail || scopedAgents.length === 0) ? (
-        <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          {!scope.sessionEmail ? (
-            <p>
-              <span className="font-medium text-foreground">Manager view</span> needs a signed-in user email to match
-              coworkers assigned to you.
-            </p>
-          ) : (
-            <p>
-              No coworkers list you as their manager yet. Ask an admin to set agent metadata{" "}
-              <code className="rounded border border-border bg-background px-1 py-0.5 text-xs">benchManagerEmail</code>{" "}
-              to <span className="font-medium text-foreground">{scope.sessionEmail}</span>.
-            </p>
-          )}
+        <div className="space-y-3">
+          <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+            {!scope.sessionEmail ? (
+              <p>
+                <span className="font-medium text-foreground">Manager view</span> needs a signed-in user email to match
+                coworkers assigned to you.
+              </p>
+            ) : (
+              <p>
+                No coworkers list <span className="font-medium text-foreground">{scope.sessionEmail}</span> as their
+                people manager yet. New hires from now on default to you — for older coworkers, use the recovery card
+                below or open the coworker and pick a manager.
+              </p>
+            )}
+          </div>
+          {selectedCompanyId ? (
+            <ManagerScopeRecovery
+              companyId={selectedCompanyId}
+              agents={agents}
+              sessionEmail={scope.sessionEmail}
+            />
+          ) : null}
         </div>
       ) : null}
 
@@ -286,6 +334,36 @@ export function Dashboard() {
           </button>
         </div>
       )}
+
+      {/*
+        Requester-facing pending-hires strip (P1 A5). Shown to anyone (manager,
+        admin, owner) who currently has open hire requests they filed; surfaces
+        the oldest one's age so they can chase reviewers without digging into
+        Approvals. Hidden when the viewer has no open requests of their own.
+      */}
+      {oldestMyPendingHireRequest ? (
+        <div className="flex items-start justify-between gap-3 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3">
+          <div className="flex items-start gap-2.5">
+            <Clock className="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div>
+              <p className="text-sm font-medium text-foreground">
+                You have {myPendingHireRequests.length} pending hire request
+                {myPendingHireRequests.length === 1 ? "" : "s"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Oldest filed {timeAgo(oldestMyPendingHireRequest.createdAt)} — awaiting a
+                Workspace Owner or Admin reviewer.
+              </p>
+            </div>
+          </div>
+          <Link
+            to={`/approvals/${oldestMyPendingHireRequest.id}`}
+            className="text-sm underline underline-offset-2 text-foreground"
+          >
+            View request
+          </Link>
+        </div>
+      ) : null}
 
       {!isAdminView ? (
         <ActiveAgentsPanel
@@ -364,7 +442,7 @@ export function Dashboard() {
                 <MetricCard
                   icon={DollarSign}
                   value={formatCents(data.costs.monthSpendCents)}
-                  label="Company month spend"
+                  label="Workspace month spend"
                   to="/costs"
                   description={
                     <span>
@@ -503,24 +581,16 @@ export function Dashboard() {
           )}
 
           {isManagerView && scopedAgents.length > 0 && scope.sessionEmail ? (
-            <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 space-y-2">
-              <h3 className="text-sm font-semibold text-foreground">Once a coworker is assigned to you</h3>
-              <ol className="text-sm text-muted-foreground list-decimal pl-4 space-y-1">
-                <li>
-                  Open <strong>Connectors</strong> and confirm IT has wired the apps your team uses; add the coworker to
-                  the right channels or drives.
-                </li>
-                <li>
-                  Edit <strong>Instructions</strong> with team norms, ticket conventions, and escalation rules.
-                </li>
-                <li>
-                  Run a small <strong>test issue</strong> or <strong>routine</strong> and watch <strong>Activity</strong>{" "}
-                  for auth errors.
-                </li>
-                <li>
-                  Check <strong>Costs</strong> so per-hire budgets match expectations.
-                </li>
-              </ol>
+            <div className="rounded-lg border border-border bg-muted/20 px-4 py-3 text-sm text-muted-foreground">
+              Open a coworker&apos;s{" "}
+              <Link
+                to={`${agentUrl(scopedAgents[0]!)}/onboarding`}
+                className="font-medium text-foreground underline underline-offset-2"
+              >
+                Onboarding tab
+              </Link>{" "}
+              to see what&apos;s left to wire — required connectors, per-coworker grants (Slack channels), and
+              instructions bundle status.
             </div>
           ) : null}
 

@@ -103,28 +103,28 @@ describe("CompanySettingsSidebar", () => {
     await flushReact();
 
     expect(container.textContent).toContain("Bench");
-    expect(container.textContent).toContain("Company Settings");
+    expect(container.textContent).toContain("Workspace settings");
     expect(container.textContent).toContain("General");
     expect(container.textContent).toContain("Environments");
     expect(container.textContent).toContain("Access");
     expect(container.textContent).toContain("Invites");
     expect(sidebarNavItemMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "/company/settings",
+        to: "/workspace/settings",
         label: "General",
         end: true,
       }),
     );
     expect(sidebarNavItemMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "/company/settings/environments",
+        to: "/workspace/settings/environments",
         label: "Environments",
         end: true,
       }),
     );
     expect(sidebarNavItemMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "/company/settings/access",
+        to: "/workspace/settings/access",
         label: "Access",
         badge: 2,
         end: true,
@@ -132,7 +132,7 @@ describe("CompanySettingsSidebar", () => {
     );
     expect(sidebarNavItemMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "/company/settings/invites",
+        to: "/workspace/settings/invites",
         label: "Invites",
         end: true,
       }),

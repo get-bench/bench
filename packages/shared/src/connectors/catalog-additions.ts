@@ -37,6 +37,14 @@ export const ADDITIONAL_CONNECTORS: ConnectorDefinition[] = [
       "Open a sample file via API or connector health check to validate token TTL and refresh behavior.",
     ),
     learnMoreUrl: "https://www.figma.com/developers/api",
+    sampleInvocableTools: [
+      "GET /v1/files/:key",
+      "GET /v1/files/:key/nodes",
+      "GET /v1/comments",
+      "POST /v1/comments",
+      "GET /v1/components",
+      "GET /v1/file_versions",
+    ],
   },
   {
     id: "framer",
@@ -343,6 +351,14 @@ export const ADDITIONAL_CONNECTORS: ConnectorDefinition[] = [
       "Monitor API quota usage during backfills.",
     ),
     learnMoreUrl: "https://airtable.com/developers/web/api/introduction",
+    sampleInvocableTools: [
+      "listBases",
+      "listTables",
+      "getTableSchema",
+      "listRecords",
+      "createRecords",
+      "updateRecords",
+    ],
   },
   {
     id: "webflow",
@@ -828,5 +844,49 @@ export const ADDITIONAL_CONNECTORS: ConnectorDefinition[] = [
       "Maintain change windows with Workday release calendar.",
     ),
     learnMoreUrl: "https://developer.workday.com/",
+  },
+  {
+    // Sheets is the day-to-day surface for analyst workflows: weekly metric
+    // pulls, lightweight dashboards, ad-hoc cohort lists. We keep this
+    // distinct from `google-drive` so the Data Analyst preset can scope
+    // permissions tightly (Sheets read/write) without dragging the broader
+    // Drive surface (Docs, Slides, arbitrary file types) into the consent.
+    id: "google-sheets",
+    stackIcon: "google",
+    name: "Google Sheets",
+    category: "knowledge",
+    description:
+      "Live spreadsheets for metric snapshots, weekly reports, and ad-hoc data pulls — the lingua franca of analyst handoffs.",
+    typicalImportance: M,
+    audiences: ["data", "operations", "leadership", "product"],
+    keywords: ["spreadsheet", "metrics", "reporting", "csv", "pivot"],
+    setupOverview:
+      "Sheets is the analyst's daily driver. Treat it as a read-write surface and scope OAuth deliberately: a Data Analyst typically reads source sheets and appends to a single reporting sheet rather than mutating arbitrary tabs.",
+    rolloutNotes: [
+      "Pin the analyst to a small allow-list of sheet IDs (source + report) rather than blanket Drive access.",
+      "If reports embed PII, align with privacy on retention and access reviews.",
+      "Prefer a service account or workspace-scoped OAuth over personal accounts so handoffs survive offboarding.",
+    ],
+    prerequisites: ["Google Workspace admin can approve OAuth apps for the org."],
+    authenticationNotes: [
+      "Use OAuth 2.0 with the narrowest viable scope — typically `spreadsheets.readonly` plus `spreadsheets` only on the reporting sheet.",
+      "Never request the broader `drive` scope unless the analyst genuinely needs file enumeration.",
+      "Rotate any pilot tokens before promoting to production sheets.",
+    ],
+    setupSteps: steps(
+      "Confirm the Google Workspace org has third-party apps enabled and identify the admin who can approve.",
+      "From Bench connector settings (when enabled), start Google Sheets OAuth and sign in as a workspace admin.",
+      "Approve scopes (typically `auth/spreadsheets.readonly` and `auth/spreadsheets` for the reporting sheet only).",
+      "Pin the spreadsheet IDs the analyst may read from and write to; document them in the coworker brief.",
+      "Run a `spreadsheets.values.get` against a non-sensitive tab to verify token health.",
+    ),
+    learnMoreUrl: "https://developers.google.com/sheets/api/guides/concepts",
+    sampleInvocableTools: [
+      "spreadsheets.values.get",
+      "spreadsheets.values.append",
+      "spreadsheets.values.update",
+      "spreadsheets.batchUpdate",
+      "spreadsheets.get",
+    ],
   },
 ];

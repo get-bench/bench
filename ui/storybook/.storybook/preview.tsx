@@ -5,6 +5,7 @@ import { MemoryRouter } from "@/lib/router";
 import { BreadcrumbProvider } from "@/context/BreadcrumbContext";
 import { CompanyProvider } from "@/context/CompanyContext";
 import { DialogProvider } from "@/context/DialogContext";
+import { DashboardPersonaProvider } from "@/context/DashboardPersonaContext";
 import { EditorAutocompleteProvider } from "@/context/EditorAutocompleteContext";
 import { PanelProvider } from "@/context/PanelContext";
 import { SidebarProvider } from "@/context/SidebarContext";
@@ -86,7 +87,10 @@ function installStorybookApiFixtures() {
       });
     }
 
-    if (url.pathname === "/api/instance/settings/experimental") {
+    if (
+      url.pathname === "/api/instance/settings/experimental" ||
+      url.pathname === "/api/bench/settings/experimental"
+    ) {
       return Response.json({
         enableIsolatedWorkspaces: true,
         autoRestartDevServerWhenIdle: false,
@@ -262,7 +266,9 @@ function StorybookProviders({
                   <BreadcrumbProvider>
                     <SidebarProvider>
                       <PanelProvider>
-                        <DialogProvider>{children}</DialogProvider>
+                        <DashboardPersonaProvider>
+                          <DialogProvider>{children}</DialogProvider>
+                        </DashboardPersonaProvider>
                       </PanelProvider>
                     </SidebarProvider>
                   </BreadcrumbProvider>
